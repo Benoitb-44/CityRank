@@ -8,6 +8,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - immo-network
 
