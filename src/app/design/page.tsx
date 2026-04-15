@@ -47,28 +47,20 @@ const scoreExamples = [
 
 export default function DesignPage() {
   return (
-    <div className="min-h-screen bg-paper-soft">
-      {/* Header */}
-      <header className="border-b-2 border-ink bg-paper px-8 py-6">
-        <div className="max-w-5xl mx-auto flex items-baseline justify-between">
-          <div>
-            <p className="font-mono text-xs tracking-widest uppercase text-ink-muted mb-1">
-              Immo Score — Design System
-            </p>
-            <h1 className="font-display text-3xl font-bold text-ink">
-              Precision Brutalism
-            </h1>
-          </div>
-          <a
-            href="/"
-            className="font-mono text-sm underline hover:text-accent transition-colors"
-          >
-            ← Accueil
-          </a>
+    <div className="bg-paper-soft flex-1">
+      {/* Page title */}
+      <div className="border-b-2 border-ink bg-paper px-6 py-6">
+        <div className="max-w-5xl mx-auto">
+          <p className="font-mono text-xs tracking-widest uppercase text-ink-muted mb-1">
+            Design System
+          </p>
+          <h1 className="font-display text-3xl font-bold text-ink">
+            Precision Brutalism
+          </h1>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-5xl mx-auto px-8 py-12 space-y-16">
+      <main className="max-w-5xl mx-auto px-6 py-12 space-y-16">
 
         {/* ── Section 1 : Couleurs ── */}
         <section>
@@ -259,18 +251,6 @@ export default function DesignPage() {
         </section>
 
       </main>
-
-      {/* Footer */}
-      <footer className="border-t-2 border-ink bg-paper mt-16 px-8 py-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <p className="font-mono text-xs text-ink-muted">
-            Immo Score — Design System v0.1 — INFRA-06
-          </p>
-          <p className="font-mono text-xs text-ink-muted">
-            Fonts : Space Grotesk + Inter via next/font
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
