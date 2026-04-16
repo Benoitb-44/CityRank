@@ -39,19 +39,24 @@ function scoreLabel(score: number): string {
 // ─── generateStaticParams ─────────────────────────────────────────────────────
 
 export async function generateStaticParams() {
-  const top = await prisma.score.findMany({
-    orderBy: { score_global: 'desc' },
-    take: 1000,
-    select: {
-      commune: {
-        select: { slug: true },
+  try {
+    const top = await prisma.score.findMany({
+      orderBy: { score_global: 'desc' },
+      take: 1000,
+      select: {
+        commune: {
+          select: { slug: true },
+        },
       },
-    },
-  });
+    });
 
-  return top
-    .filter((s) => s.commune?.slug)
-    .map((s) => ({ slug: s.commune!.slug }));
+    return top
+      .filter((s: { commune: { slug: string } | null }) => s.commune?.slug)
+      .map((s: { commune: { slug: string } | null }) => ({ slug: s.commune!.slug }));
+  } catch {
+    // DB indisponible au build (ex : docker build sans DB) → ISR génère les pages à la demande
+    return [];
+  }
 }
 
 // ─── generateMetadata ─────────────────────────────────────────────────────────
