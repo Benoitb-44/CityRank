@@ -8,6 +8,11 @@
  * - Décompression streaming (zlib) + parsing ligne par ligne (readline)
  * - Filtre : Appartement + Maison, surface > 0, valeur > 0
  * - Idempotent : deleteMany + createMany par commune
+ *
+ * Mapping arrondissements → commune parent :
+ * - Paris  75101–75120 → 75056
+ * - Lyon   69381–69389 → 69123
+ * - Marseille 13201–13216 → 13055
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -17,6 +22,27 @@ import { Readable } from 'stream';
 
 const prisma = new PrismaClient();
 const DVF_URL = 'https://files.data.gouv.fr/geo-dvf/latest/csv/2024/departements';
+
+/**
+ * Mappe les codes INSEE des arrondissements vers le code de la commune mère.
+ * Les fichiers DVF utilisent les codes d'arrondissement (ex: 75101) au lieu
+ * du code commune officiel (ex: 75056).
+ */
+function normalizeCodeCommune(code: string): string {
+  // Paris : 75101–75120 → 75056
+  if (code.length === 5 && code.startsWith('751') && parseInt(code.slice(3)) >= 1 && parseInt(code.slice(3)) <= 20) {
+    return '75056';
+  }
+  // Lyon : 69381–69389 → 69123
+  if (code.length === 5 && code.startsWith('693') && parseInt(code.slice(3)) >= 81 && parseInt(code.slice(3)) <= 89) {
+    return '69123';
+  }
+  // Marseille : 13201–13216 → 13055
+  if (code.length === 5 && code.startsWith('132') && parseInt(code.slice(3)) >= 1 && parseInt(code.slice(3)) <= 16) {
+    return '13055';
+  }
+  return code;
+}
 
 interface DvfRecord {
   code_commune: string;
@@ -101,8 +127,9 @@ async function parseDeptCsv(dept: string): Promise<Map<string, DvfRecord[]>> {
     const valeur = parseFloat(valeurStr);
     if (!valeur || valeur <= 0 || isNaN(valeur)) continue;
 
-    const codeCommune = row[headerMap['code_commune']]?.trim();
-    if (!codeCommune) continue;
+    const rawCode = row[headerMap['code_commune']]?.trim();
+    if (!rawCode) continue;
+    const codeCommune = normalizeCodeCommune(rawCode);
 
     const dateStr = row[headerMap['date_mutation']]?.trim();
     let dateMutation: Date;
@@ -165,7 +192,7 @@ async function upsertDeptData(
   return { inserted, communes, errors };
 }
 
-async function ingest(): Promise<IngestResult> {
+async function ingest(filterDepts?: string[]): Promise<IngestResult> {
   const start = Date.now();
   const allErrors: string[] = [];
   let totalCommunes = 0;
@@ -177,7 +204,11 @@ async function ingest(): Promise<IngestResult> {
     orderBy: { departement: 'asc' },
   });
 
-  const departements = [...new Set(deptRows.map(r => r.departement))];
+  let departements = [...new Set(deptRows.map(r => r.departement))];
+  if (filterDepts && filterDepts.length > 0) {
+    departements = departements.filter(d => filterDepts.includes(d));
+    console.log(`Mode ciblé : traitement limité aux départements ${filterDepts.join(', ')}`);
+  }
   const knownCommunes = new Set(deptRows.map(r => r.code_insee));
 
   console.log(`Ingestion DVF pour ${departements.length} départements, ${knownCommunes.size} communes référencées`);
@@ -215,7 +246,11 @@ async function ingest(): Promise<IngestResult> {
   };
 }
 
-ingest()
+// Support --depts 75,69,13 pour relancer uniquement certains départements
+const deptsArg = process.argv.find(a => a.startsWith('--depts='));
+const filterDepts = deptsArg ? deptsArg.replace('--depts=', '').split(',').map(d => d.trim()) : undefined;
+
+ingest(filterDepts)
   .then(result => {
     console.log('\n' + JSON.stringify(result, null, 2));
     process.exit(result.communes_errored > result.communes_processed * 0.1 ? 1 : 0);
