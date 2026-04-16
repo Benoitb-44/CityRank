@@ -70,7 +70,8 @@
       "Bash(PGPASSWORD=\"Scoreimmo2026!\" PGCLIENTENCODING=\"UTF8\" \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U postgres -d postgres -c \"SELECT COUNT\\(*\\) FROM immo_score.dvf_prix WHERE code_commune = '69123'; SELECT COUNT\\(*\\) FROM immo_score.dvf_prix WHERE code_commune = '75056';\")",
       "Bash(npx tsc *)",
       "Bash(xargs ls *)",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(chmod +x /workspaces/immo-score/scripts/migrate-db.sh)"
     ]
   }
 }

@@ -1,4 +1,22 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: immo-score-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-immo_score}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - immo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-immo_score}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   immo-score:
     build: .
     container_name: immo-score
@@ -8,10 +26,14 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=production
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - immo-network
+
+volumes:
+  postgres_data:
 
 networks:
   immo-network:
