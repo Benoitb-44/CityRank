@@ -1,78 +1,102 @@
 /**
- * scoring.ts
- * Algorithme de score composite 0-100 pour les communes françaises.
+ * scoring.ts — v2
  *
- * Dimensions actives (3 sources disponibles sur 6) — pondérations normalisées :
- *   DVF      50% — prix m² médian (percentile rank inverse, 70%) + liquidité (percentile rank, 30%)
- *   DPE      30% — % logements classe A+B (bâti performant)
- *   Risques  20% — départ 100, malus par risque recensé (MOYEN −5, FORT −15, TRES_FORT −20)
+ * Algorithme de score composite 0-100 par commune (ADR-IS-002, ADR-IS-005).
  *
- * Méthode : PERCENT_RANK() via window functions SQL pour DVF (comparaison nationale).
- * Communes sans données sur une dimension → score médiane nationale = 50.
+ * Goalposts absolus :
+ *   DVF prix   : [≤800 →100, ≥6000 →0] €/m² (inverse)
+ *   DVF liq    : [0 →0, ≥0.05 →100] tx/hab
+ *   DPE        : [≤40% →0, 100% →100] pct_non_passoire (logements ≤ classe E)
+ *   Risques    : départ 100, malus MOYEN−5 / FORT−15 / TRES_FORT−20
+ *
+ * Pondérations : DVF 60%, DPE 10%, Risques 30%.
+ * Agrégation géométrique pondérée — poids renormalisés sur dimensions présentes.
+ * Dimensions manquantes → null (aucune imputation médiane).
+ * Clip [1, 100] avant exponentiation pour éviter l'annihilation par zéro.
  */
 
 import { PrismaClient, NiveauRisque } from '@prisma/client';
 
-// ─── Pondérations ────────────────────────────────────────────────────────────
+// ─── Goalposts ────────────────────────────────────────────────────────────────
 
-/** Poids de chaque dimension dans le score global (somme = 1.0) */
-const W = {
-  dvf: 0.50,
-  dpe: 0.30,
-  risques: 0.20,
-} as const;
+const DVF_PRIX_BEST  = 800;   // ≤ → score 100
+const DVF_PRIX_WORST = 6000;  // ≥ → score 0
+const DVF_LIQ_FULL   = 0.05;  // ≥ → score 100
+const DPE_NP_FLOOR   = 40;    // % non-passoire ≤ → score 0
+const DPE_NP_CEIL    = 100;   // % non-passoire = → score 100
 
-/** Split DVF : prix attractif vs volume de transactions */
-const W_DVF = {
-  prix: 0.70,
-  liquidite: 0.30,
-} as const;
+// ─── Pondérations ─────────────────────────────────────────────────────────────
 
-/** Malus appliqué par risque recensé (déduit de 100) */
+const W     = { dvf: 0.60, dpe: 0.10, risques: 0.30 } as const;
+const W_DVF = { prix: 0.70, liq: 0.30 }               as const;
+
+// ─── Malus risques ────────────────────────────────────────────────────────────
+
 const MALUS: Record<NiveauRisque, number> = {
-  [NiveauRisque.FAIBLE]: 0,
-  [NiveauRisque.MOYEN]: 5,
-  [NiveauRisque.FORT]: 15,
+  [NiveauRisque.FAIBLE]:    0,
+  [NiveauRisque.MOYEN]:     5,
+  [NiveauRisque.FORT]:     15,
   [NiveauRisque.TRES_FORT]: 20,
 };
 
-/** Score substitué pour une dimension sans données (médiane nationale) */
-const SCORE_DEFAUT = 50;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// ─── Types publics ───────────────────────────────────────────────────────────
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+// ─── Agrégation géométrique pondérée ─────────────────────────────────────────
+
+function geometricScore(dims: Array<{ score: number; weight: number }>): number {
+  if (dims.length === 0) return 0;
+  const totalW = dims.reduce((s, d) => s + d.weight, 0);
+  const product = dims.reduce((p, d) => {
+    const w = d.weight / totalW;
+    // Clip [1, 100] : un score de 0 ne doit pas annuler tout le produit
+    const s = clamp(d.score, 1, 100);
+    return p * Math.pow(s / 100, w);
+  }, 1);
+  return round1(product * 100);
+}
+
+// ─── Types publics ────────────────────────────────────────────────────────────
 
 export interface DvfDetails {
-  /** Score dimension DVF 0-100 (null si commune absente de DVF) */
+  /** Score dimension DVF 0-100 (null = pas de données DVF pour cette commune) */
   score: number | null;
-  /** Percentile rang prix (0 = plus cher, 100 = moins cher) */
-  prix_percentile: number | null;
-  /** Percentile rang liquidité (0 = moins actif, 100 = plus actif) */
-  liquidite_percentile: number | null;
-  /** Prix m² médian de la commune (€) */
+  /** Score sous-dimension prix (goalpost inverse, 0-100) */
+  score_prix: number | null;
+  /** Score sous-dimension liquidité (goalpost, 0-100) */
+  score_liq: number | null;
+  /** Prix m² médian observé (€) */
   prix_m2_median: number | null;
-  /** Nombre de transactions (appartements + maisons, 2024) */
+  /** Transactions par habitant */
+  tx_per_hab: number | null;
+  /** Nombre de transactions brutes */
   nb_transactions: number | null;
 }
 
 export interface DpeDetails {
-  /** Score dimension DPE 0-100 = % logements A+B (null si commune absente de DPE) */
+  /** Score dimension DPE 0-100 (null = pas de données DPE) */
   score: number | null;
-  /** Pourcentage de logements classés A ou B */
+  /** % logements classés A, B, C, D ou E (non-passoires) */
+  pct_non_passoire: number | null;
+  /** % logements classés A ou B (conservé pour affichage) */
   pct_ab: number | null;
-  /** Total logements avec DPE dans la commune */
+  /** Nombre total de logements avec DPE dans la commune */
   total_logements: number | null;
 }
 
 export interface RisquesDetails {
-  /** Score dimension risques 0-100 (null si commune absente de Géorisques) */
+  /** Score dimension risques 0-100 (null = commune absente de Géorisques) */
   score: number | null;
-  /** Nombre de risques de niveau TRES_FORT */
   tres_fort: number;
-  /** Nombre de risques de niveau FORT */
   fort: number;
-  /** Nombre de risques de niveau MOYEN */
   moyen: number;
-  /** Nombre de risques de niveau FAIBLE */
   faible: number;
 }
 
@@ -86,12 +110,11 @@ export interface ScoreDetails {
   };
 }
 
-// ─── Requête DVF ─────────────────────────────────────────────────────────────
+// ─── Requête DVF ──────────────────────────────────────────────────────────────
 
 interface DvfRow {
-  score_prix: string | null;       // PERCENT_RANK retourné comme numeric → string par node-postgres
-  score_liquidite: string | null;
   prix_m2_median: string | null;
+  tx_per_hab:     string | null;
   nb_transactions: string | null;
 }
 
@@ -100,58 +123,56 @@ async function fetchDvfDetails(
   client: PrismaClient,
 ): Promise<DvfDetails> {
   const rows = await client.$queryRaw<DvfRow[]>`
-    WITH commune_stats AS (
-      SELECT
-        code_commune,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY prix_m2) AS prix_m2_median,
-        COUNT(*)::bigint                                       AS nb_transactions
-      FROM immo_score.dvf_prix
-      WHERE prix_m2 IS NOT NULL
-      GROUP BY code_commune
-    ),
-    ranked AS (
-      SELECT
-        code_commune,
-        prix_m2_median,
-        nb_transactions,
-        PERCENT_RANK() OVER (ORDER BY prix_m2_median DESC) * 100 AS score_prix,
-        PERCENT_RANK() OVER (ORDER BY nb_transactions  ASC) * 100 AS score_liquidite
-      FROM commune_stats
-    )
-    SELECT score_prix, score_liquidite, prix_m2_median, nb_transactions
-    FROM ranked
-    WHERE code_commune = ${communeId}
+    SELECT
+      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY d.prix_m2)::text   AS prix_m2_median,
+      (COUNT(*)::float / NULLIF(c.population, 0))::text               AS tx_per_hab,
+      COUNT(*)::text                                                   AS nb_transactions
+    FROM immo_score.dvf_prix d
+    JOIN immo_score.communes c ON c.code_insee = d.code_commune
+    WHERE d.code_commune = ${communeId}
+      AND d.prix_m2 IS NOT NULL
+      AND d.prix_m2 > 0
+    GROUP BY c.population
   `;
 
-  if (rows.length === 0) {
-    return { score: null, prix_percentile: null, liquidite_percentile: null, prix_m2_median: null, nb_transactions: null };
+  if (rows.length === 0 || rows[0].prix_m2_median == null) {
+    return {
+      score: null, score_prix: null, score_liq: null,
+      prix_m2_median: null, tx_per_hab: null, nb_transactions: null,
+    };
   }
 
-  const row = rows[0];
-  const scorePrix = row.score_prix != null ? parseFloat(row.score_prix) : null;
-  const scoreLiquidite = row.score_liquidite != null ? parseFloat(row.score_liquidite) : null;
+  const prix    = parseFloat(rows[0].prix_m2_median);
+  const txPerHab = rows[0].tx_per_hab != null ? parseFloat(rows[0].tx_per_hab) : null;
+  const nbTx     = rows[0].nb_transactions != null ? parseInt(rows[0].nb_transactions) : null;
 
-  let score: number | null = null;
-  if (scorePrix != null && scoreLiquidite != null) {
-    score = W_DVF.prix * scorePrix + W_DVF.liquidite * scoreLiquidite;
-  } else if (scorePrix != null) {
-    score = scorePrix;
-  }
+  const scorePrix = round1(
+    clamp((DVF_PRIX_WORST - prix) / (DVF_PRIX_WORST - DVF_PRIX_BEST) * 100, 0, 100),
+  );
+  const scoreLiq = txPerHab != null
+    ? round1(clamp(txPerHab / DVF_LIQ_FULL * 100, 0, 100))
+    : null;
+
+  const score = scoreLiq != null
+    ? round1(W_DVF.prix * scorePrix + W_DVF.liq * scoreLiq)
+    : scorePrix;
 
   return {
-    score: score != null ? round1(score) : null,
-    prix_percentile: scorePrix != null ? round1(scorePrix) : null,
-    liquidite_percentile: scoreLiquidite != null ? round1(scoreLiquidite) : null,
-    prix_m2_median: row.prix_m2_median != null ? Math.round(parseFloat(row.prix_m2_median)) : null,
-    nb_transactions: row.nb_transactions != null ? parseInt(row.nb_transactions) : null,
+    score,
+    score_prix:      scorePrix,
+    score_liq:       scoreLiq,
+    prix_m2_median:  Math.round(prix),
+    tx_per_hab:      txPerHab,
+    nb_transactions: nbTx,
   };
 }
 
-// ─── Requête DPE ─────────────────────────────────────────────────────────────
+// ─── Requête DPE ──────────────────────────────────────────────────────────────
 
 interface DpeRow {
-  ab_count: string;
-  total_count: string;
+  pct_non_passoire: string | null;
+  pct_ab:           string | null;
+  total_logements:  string | null;
 }
 
 async function fetchDpeDetails(
@@ -160,28 +181,40 @@ async function fetchDpeDetails(
 ): Promise<DpeDetails> {
   const rows = await client.$queryRaw<DpeRow[]>`
     SELECT
-      COALESCE(SUM(CASE WHEN classe_dpe IN ('A','B') THEN nb_logements ELSE 0 END), 0)::text AS ab_count,
-      COALESCE(SUM(nb_logements), 0)::text                                                    AS total_count
+      (SUM(CASE WHEN classe_dpe IN ('A','B','C','D','E') THEN nb_logements ELSE 0 END)::float
+        / NULLIF(SUM(nb_logements), 0) * 100)::text  AS pct_non_passoire,
+      (SUM(CASE WHEN classe_dpe IN ('A','B') THEN nb_logements ELSE 0 END)::float
+        / NULLIF(SUM(nb_logements), 0) * 100)::text  AS pct_ab,
+      COALESCE(SUM(nb_logements), 0)::text            AS total_logements
     FROM immo_score.dpe_communes
     WHERE code_commune = ${communeId}
   `;
 
-  const total = rows[0]?.total_count ? parseInt(rows[0].total_count) : 0;
-  if (total === 0) {
-    return { score: null, pct_ab: null, total_logements: null };
+  const total = rows[0]?.total_logements ? parseInt(rows[0].total_logements) : 0;
+  if (total === 0 || rows[0]?.pct_non_passoire == null) {
+    return { score: null, pct_non_passoire: null, pct_ab: null, total_logements: null };
   }
 
-  const ab = parseInt(rows[0].ab_count);
-  const pct = round1((ab / total) * 100);
+  const pctNp = parseFloat(rows[0].pct_non_passoire);
+  const pctAb = rows[0].pct_ab != null ? round1(parseFloat(rows[0].pct_ab)) : null;
 
-  return { score: pct, pct_ab: pct, total_logements: total };
+  const score = round1(
+    clamp((pctNp - DPE_NP_FLOOR) / (DPE_NP_CEIL - DPE_NP_FLOOR) * 100, 0, 100),
+  );
+
+  return {
+    score,
+    pct_non_passoire: round1(pctNp),
+    pct_ab:           pctAb,
+    total_logements:  total,
+  };
 }
 
-// ─── Requête Risques ─────────────────────────────────────────────────────────
+// ─── Requête Risques ──────────────────────────────────────────────────────────
 
 interface RisqueRow {
   niveau: NiveauRisque;
-  cnt: string;
+  cnt:    string;
 }
 
 async function fetchRisquesDetails(
@@ -196,7 +229,7 @@ async function fetchRisquesDetails(
   `;
 
   if (rows.length === 0) {
-    // Aucune entrée = commune non couverte par Géorisques (pas "sans risque")
+    // Aucune entrée Géorisques = commune non couverte (pas "sans risque")
     return { score: null, tres_fort: 0, fort: 0, moyen: 0, faible: 0 };
   }
 
@@ -206,16 +239,13 @@ async function fetchRisquesDetails(
   for (const row of rows) {
     const cnt = parseInt(row.cnt);
     malus += MALUS[row.niveau] * cnt;
-    if (row.niveau === NiveauRisque.TRES_FORT) counts.tres_fort += cnt;
-    else if (row.niveau === NiveauRisque.FORT) counts.fort += cnt;
-    else if (row.niveau === NiveauRisque.MOYEN) counts.moyen += cnt;
-    else if (row.niveau === NiveauRisque.FAIBLE) counts.faible += cnt;
+    if      (row.niveau === NiveauRisque.TRES_FORT) counts.tres_fort += cnt;
+    else if (row.niveau === NiveauRisque.FORT)      counts.fort      += cnt;
+    else if (row.niveau === NiveauRisque.MOYEN)     counts.moyen     += cnt;
+    else if (row.niveau === NiveauRisque.FAIBLE)    counts.faible    += cnt;
   }
 
-  return {
-    score: Math.max(0, 100 - malus),
-    ...counts,
-  };
+  return { score: Math.max(0, 100 - malus), ...counts };
 }
 
 // ─── Fonction principale ──────────────────────────────────────────────────────
@@ -225,47 +255,34 @@ const defaultClient = new PrismaClient();
 /**
  * Calcule le score composite (0-100) d'une commune française.
  *
- * @param communeId  - Code INSEE de la commune (ex : "75056" pour Paris)
- * @param client     - Instance PrismaClient (optionnel, utilise le client par défaut)
- * @returns          - Objet {score, details} ou null si la commune n'existe pas
+ * @param communeId  Code INSEE de la commune (ex. "75056" pour Paris)
+ * @param client     PrismaClient (optionnel, utilise le client par défaut)
+ * @returns          ScoreDetails ou null si la commune n'existe pas
  */
 export async function calculateScore(
   communeId: string,
   client: PrismaClient = defaultClient,
 ): Promise<ScoreDetails | null> {
-  // Vérification existence de la commune
   const commune = await client.commune.findUnique({
-    where: { code_insee: communeId },
+    where:  { code_insee: communeId },
     select: { code_insee: true },
   });
   if (!commune) return null;
 
-  // Requêtes parallèles sur les 3 dimensions
   const [dvf, dpe, risques] = await Promise.all([
     fetchDvfDetails(communeId, client),
     fetchDpeDetails(communeId, client),
     fetchRisquesDetails(communeId, client),
   ]);
 
-  // Dimensions manquantes → médiane nationale (50) pour le calcul global
-  const effectiveDvf = dvf.score ?? SCORE_DEFAUT;
-  const effectiveDpe = dpe.score ?? SCORE_DEFAUT;
-  const effectiveRisques = risques.score ?? SCORE_DEFAUT;
-
-  const scoreGlobal = round1(
-    W.dvf * effectiveDvf +
-    W.dpe * effectiveDpe +
-    W.risques * effectiveRisques,
-  );
+  // Seules les dimensions avec données participent au score (pas d'imputation)
+  const dims: Array<{ score: number; weight: number }> = [];
+  if (dvf.score     != null) dims.push({ score: dvf.score,     weight: W.dvf     });
+  if (dpe.score     != null) dims.push({ score: dpe.score,     weight: W.dpe     });
+  if (risques.score != null) dims.push({ score: risques.score, weight: W.risques });
 
   return {
-    score: scoreGlobal,
+    score:   geometricScore(dims),
     details: { dvf, dpe, risques },
   };
-}
-
-// ─── Utilitaire ──────────────────────────────────────────────────────────────
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
 }
