@@ -41,6 +41,7 @@ async function main(): Promise<ComputeResult> {
   let updated = 0;
   let skipped = 0;
   let errored = 0;
+  let withRisques = 0;
   const errors: string[] = [];
 
   if (TEST_MODE) {
@@ -73,6 +74,8 @@ async function main(): Promise<ComputeResult> {
           processed++;
           continue;
         }
+
+        if (result.details.risques.score != null) withRisques++;
 
         await prisma.score.upsert({
           where: { code_commune: commune.code_insee },
@@ -119,6 +122,8 @@ async function main(): Promise<ComputeResult> {
 
   process.stdout.write('\n');
   const duration_ms = Date.now() - startedAt;
+
+  console.log(`[compute-scores] Couverture Géorisques : ${withRisques} communes avec score_risques / ${processed} total`);
 
   return {
     communes_processed: processed,

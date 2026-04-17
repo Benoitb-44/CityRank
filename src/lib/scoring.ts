@@ -153,6 +153,8 @@ async function fetchDvfDetails(
     ? round1(clamp(txPerHab / DVF_LIQ_FULL * 100, 0, 100))
     : null;
 
+  // Si tx_per_hab est null (population absente ou 0), le signal liquidité est indisponible.
+  // On renormalise DVF sur score_prix uniquement — le poids global DVF (0.60) reste inchangé.
   const score = scoreLiq != null
     ? round1(W_DVF.prix * scorePrix + W_DVF.liq * scoreLiq)
     : scorePrix;
