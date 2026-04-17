@@ -127,3 +127,29 @@ make ssh                       # SSH vers VPS
 - Hébergement France obligatoire (OVH) — souveraineté données.
 - Le SEO programmatique est le cœur du projet : chaque décision technique doit être évaluée à travers le prisme "est-ce que ça aide le SEO ?".
 - Les données sont publiques (open data) — pas de problème de licence, mais citation des sources obligatoire sur chaque page.
+
+## Post-session Protocol
+
+À la fin de chaque session de travail, mettre à jour la page Notion **"État du Site"** (ID : `345407e4-9119-8177-803b-ddf2ec2f389b`) avec un résumé des modifications effectuées.
+
+### Contenu à documenter dans Notion
+
+- **Routes modifiées** : lister les fichiers `app/**/page.tsx` ou `app/**/route.ts` touchés
+- **Composants modifiés** : lister les composants React créés ou modifiés
+- **Bugs corrigés** : décrire brièvement le bug et la correction appliquée
+- **Scripts de données** : indiquer si des scripts d'ingestion ou `compute-scores.ts` ont été modifiés
+- **Schéma BDD** : signaler tout changement de schéma Prisma
+- **Date** : horodatage de la session (date du jour)
+
+### Format de mise à jour Notion
+
+Utiliser l'outil MCP Notion (si disponible) ou fournir à Benoît un bloc Markdown prêt à coller dans la page :
+
+```
+## Session [DATE]
+**Agent(s)** : @[agent utilisé]
+**Modifications** :
+- [composant/route] : [description courte]
+**Bugs corrigés** : [description ou "aucun"]
+**À surveiller** : [régressions potentielles ou points d'attention]
+```
