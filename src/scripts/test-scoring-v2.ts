@@ -14,7 +14,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { calculateScore, ScoreDetails } from '../lib/scoring';
+import { calculateScore } from '../lib/scoring';
 
 const prisma = new PrismaClient();
 

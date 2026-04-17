@@ -6,7 +6,7 @@
  * generateMetadata     : titre + description dynamiques pour le SEO.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, NiveauRisque } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
@@ -22,6 +22,16 @@ declare global {
 const prisma = globalThis.__prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalThis.__prisma = prisma;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type RisqueItem = {
+  type_risque: string;
+  niveau: NiveauRisque;
+  description: string | null;
+};
+
+type NavCommune = { nom: string; slug: string };
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function scoreColor(score: number): { bg: string; text: string } {
@@ -35,6 +45,35 @@ function scoreLabel(score: number): string {
   if (score >= 40) return 'Moyen';
   return 'Faible';
 }
+
+function scoreInterpretation(score: number): string {
+  if (score >= 70)
+    return 'Commune bien classée — marché accessible, bâti de qualité énergétique et faible exposition aux risques.';
+  if (score >= 40)
+    return 'Commune dans la moyenne nationale — profil équilibré sans signal fort positif ni négatif.';
+  return 'Commune en dessous de la médiane nationale — accessibilité prix, performance énergétique ou risques limitants.';
+}
+
+const NIVEAU_SORT: Record<NiveauRisque, number> = {
+  [NiveauRisque.TRES_FORT]: 0,
+  [NiveauRisque.FORT]: 1,
+  [NiveauRisque.MOYEN]: 2,
+  [NiveauRisque.FAIBLE]: 3,
+};
+
+const NIVEAU_LABEL: Record<NiveauRisque, string> = {
+  [NiveauRisque.TRES_FORT]: 'Très fort',
+  [NiveauRisque.FORT]: 'Fort',
+  [NiveauRisque.MOYEN]: 'Moyen',
+  [NiveauRisque.FAIBLE]: 'Faible',
+};
+
+const NIVEAU_CLASS: Record<NiveauRisque, string> = {
+  [NiveauRisque.TRES_FORT]: 'bg-score-low text-white',
+  [NiveauRisque.FORT]: 'bg-orange-500 text-white',
+  [NiveauRisque.MOYEN]: 'bg-score-mid text-white',
+  [NiveauRisque.FAIBLE]: 'bg-score-high text-white',
+};
 
 // ─── generateStaticParams ─────────────────────────────────────────────────────
 
@@ -105,6 +144,64 @@ export default async function CommunePage({
 
   if (!commune) notFound();
 
+  const currentGlobalScore = commune.score?.score_global ?? null;
+
+  const [dvfRows, dpeRows, risquesList, sameDeptCommunes, similarScoreCommunes] = await Promise.all([
+    prisma.$queryRaw<{ prix_m2_median: string | null; tx_per_hab: string | null }[]>`
+      SELECT
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY d.prix_m2)::text AS prix_m2_median,
+        (COUNT(*)::float / NULLIF(c.population, 0))::text             AS tx_per_hab
+      FROM immo_score.dvf_prix d
+      JOIN immo_score.communes c ON c.code_insee = d.code_commune
+      WHERE d.code_commune = ${commune.code_insee}
+        AND d.prix_m2 IS NOT NULL
+        AND d.prix_m2 > 0
+      GROUP BY c.population
+    `,
+    prisma.$queryRaw<{ pct_non_passoire: string | null }[]>`
+      SELECT
+        (SUM(CASE WHEN classe_dpe IN ('A','B','C','D','E') THEN nb_logements ELSE 0 END)::float
+          / NULLIF(SUM(nb_logements), 0) * 100)::text AS pct_non_passoire
+      FROM immo_score.dpe_communes
+      WHERE code_commune = ${commune.code_insee}
+    `,
+    prisma.risque.findMany({
+      where: { code_commune: commune.code_insee },
+      select: { type_risque: true, niveau: true, description: true },
+    }),
+    prisma.commune.findMany({
+      where: {
+        departement: commune.departement,
+        NOT: { code_insee: commune.code_insee },
+      },
+      orderBy: { population: 'desc' },
+      take: 5,
+      select: { nom: true, slug: true },
+    }),
+    currentGlobalScore != null
+      ? prisma.$queryRaw<NavCommune[]>`
+          SELECT c.nom, c.slug
+          FROM immo_score.communes c
+          JOIN immo_score.scores s ON s.code_commune = c.code_insee
+          WHERE c.departement != ${commune.departement}
+            AND c.code_insee != ${commune.code_insee}
+            AND s.score_global BETWEEN ${currentGlobalScore - 5} AND ${currentGlobalScore + 5}
+          ORDER BY ABS(s.score_global - ${currentGlobalScore})
+          LIMIT 4
+        `
+      : Promise.resolve([] as NavCommune[]),
+  ]);
+
+  const prixM2Median = dvfRows[0]?.prix_m2_median
+    ? Math.round(parseFloat(dvfRows[0].prix_m2_median))
+    : null;
+  const txPerHab = dvfRows[0]?.tx_per_hab
+    ? parseFloat(dvfRows[0].tx_per_hab)
+    : null;
+  const pctNonPassoire = dpeRows[0]?.pct_non_passoire
+    ? Math.round(parseFloat(dpeRows[0].pct_non_passoire))
+    : null;
+
   const score = commune.score;
   const globalScore = score?.score_global ?? null;
   const globalRounded = globalScore != null ? Math.round(globalScore) : null;
@@ -146,7 +243,7 @@ export default async function CommunePage({
           <nav aria-label="Fil d'Ariane" className="font-mono text-xs text-ink-muted mb-5">
             <a href="/" className="hover:text-ink transition-colors">Accueil</a>
             <span className="mx-2">/</span>
-            <span>Communes</span>
+            <a href="/" className="hover:text-ink transition-colors">Communes</a>
             <span className="mx-2">/</span>
             <span className="text-ink font-bold">{commune.nom}</span>
           </nav>
@@ -195,6 +292,13 @@ export default async function CommunePage({
               </div>
             </div>
           </div>
+
+          {globalRounded != null && (
+            <p className="font-mono text-xs text-neutral-500 mt-4">
+              {scoreInterpretation(globalRounded)}{' '}
+              <span>Médiane nationale : ~55/100</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -203,31 +307,27 @@ export default async function CommunePage({
 
         <SectionTitle index="01" title="Détail des dimensions" />
 
-        <div className="border-2 border-ink divide-y-2 sm:divide-y-0 sm:divide-x-2 divide-ink flex flex-col sm:flex-row">
-          <ScoreCard
-            index="01"
-            label="Prix immobilier DVF"
-            source="data.gouv.fr"
+        {/* Layout asymétrique : DVF pleine largeur + Risques 2/3 | DPE 1/3 */}
+        <div className="border-2 border-ink">
+
+          {/* DVF — pleine largeur, score en grand */}
+          <DvfCard
             score={score?.score_dvf ?? null}
-            description="Percentile national du prix médian au m² + liquidité du marché."
-            weight="50 %"
+            prixM2Median={prixM2Median}
+            txPerHab={txPerHab}
           />
-          <ScoreCard
-            index="02"
-            label="Performance énergétique"
-            source="ADEME"
-            score={score?.score_dpe ?? null}
-            description="Part des logements classés A ou B sur le total des DPE déposés."
-            weight="30 %"
-          />
-          <ScoreCard
-            index="03"
-            label="Risques naturels"
-            source="Géorisques"
-            score={score?.score_risques ?? null}
-            description="Score de 100 diminué par les malus de risques recensés (MOYEN −5, FORT −15, TRÈS FORT −20)."
-            weight="20 %"
-          />
+
+          {/* Risques + DPE côte à côte */}
+          <div className="flex flex-col sm:flex-row divide-y-2 sm:divide-y-0 sm:divide-x-2 divide-ink">
+            <RisquesCard
+              score={score?.score_risques ?? null}
+              risques={risquesList}
+            />
+            <DpeCard
+              score={score?.score_dpe ?? null}
+              pctNonPassoire={pctNonPassoire}
+            />
+          </div>
         </div>
 
         {/* Légende couleurs */}
@@ -245,6 +345,46 @@ export default async function CommunePage({
             0–39 — Faible
           </span>
         </div>
+
+        {/* ── Navigation — même département ── */}
+        {sameDeptCommunes.length > 0 && (
+          <div className="mt-10">
+            <p className="font-mono text-xs uppercase tracking-widest text-ink-muted mb-3">
+              Dans le même département
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {sameDeptCommunes.map((c) => (
+                <a
+                  key={c.slug}
+                  href={`/communes/${c.slug}`}
+                  className="border-2 border-ink font-mono text-xs px-3 py-1.5 hover:bg-ink hover:text-paper transition-colors"
+                >
+                  {c.nom}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Navigation — score similaire ── */}
+        {similarScoreCommunes.length > 0 && (
+          <div className="mt-6">
+            <p className="font-mono text-xs uppercase tracking-widest text-ink-muted mb-3">
+              Score similaire
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {similarScoreCommunes.map((c) => (
+                <a
+                  key={c.slug}
+                  href={`/communes/${c.slug}`}
+                  className="border-2 border-ink font-mono text-xs px-3 py-1.5 hover:bg-ink hover:text-paper transition-colors"
+                >
+                  {c.nom}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Source notice */}
         <div className="mt-8 border-2 border-ink bg-paper p-4 flex flex-col sm:flex-row items-start gap-3">
@@ -281,57 +421,194 @@ function SectionTitle({ index, title }: { index: string; title: string }) {
   );
 }
 
-function ScoreCard({
-  index,
-  label,
-  source,
+// ─── DVF Card — pleine largeur, score en grand ────────────────────────────────
+
+function DvfCard({
   score,
-  description,
-  weight,
+  prixM2Median,
+  txPerHab,
 }: {
-  index: string;
-  label: string;
-  source: string;
-  score: number | null | undefined;
-  description: string;
-  weight: string;
+  score: number | null;
+  prixM2Median: number | null;
+  txPerHab: number | null;
 }) {
   const hasScore = score != null;
   const rounded = hasScore ? Math.round(score) : null;
   const color = rounded != null ? scoreColor(rounded) : null;
 
   return (
-    <div className="flex-1 bg-paper">
-      {/* Card header */}
-      <div className="border-b-2 border-ink px-5 py-3">
-        <p className="font-mono text-[10px] text-ink-muted tracking-widest uppercase mb-0.5">
-          {index} — Poids {weight}
-        </p>
-        <p className="font-display font-semibold text-ink">{label}</p>
+    <div className={`border-b-2 border-ink bg-paper${!hasScore ? ' opacity-40' : ''}`}>
+      {/* Header */}
+      <div className="border-b-2 border-ink px-6 py-3 flex items-center justify-between">
+        <div>
+          <p className="font-display font-semibold text-ink">Prix immobilier DVF</p>
+          <p className="font-mono text-[10px] text-ink-muted tracking-widest uppercase mt-0.5">
+            Source : data.gouv.fr
+          </p>
+        </div>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 60 %</span>
       </div>
 
-      {/* Score */}
-      <div className="p-5">
-        {hasScore && rounded != null && color ? (
-          <div
-            className={`${color.bg} ${color.text} inline-flex items-baseline gap-1 px-5 py-3 border-2 border-ink`}
-          >
-            <span className="font-display text-4xl font-bold tabular-nums leading-none">
-              {rounded}
-            </span>
-            <span className="font-mono text-sm">/100</span>
+      {/* Body */}
+      {!hasScore ? (
+        <div className="px-6 py-10 flex items-center justify-center">
+          <p className="font-mono text-sm text-ink-muted">Données insuffisantes</p>
+        </div>
+      ) : (
+        <div className="px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          {color && rounded != null && (
+            <div
+              className={`${color.bg} ${color.text} border-2 border-ink px-8 py-5 flex items-baseline gap-2 shrink-0`}
+            >
+              <span className="font-display text-6xl font-bold tabular-nums leading-none">
+                {rounded}
+              </span>
+              <span className="font-mono text-base">/100</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {prixM2Median != null && (
+              <p className="font-mono text-sm text-ink">
+                Prix médian :{' '}
+                <span className="font-bold">
+                  {prixM2Median.toLocaleString('fr-FR')} €/m²
+                </span>
+              </p>
+            )}
+            {txPerHab != null && (
+              <p className="font-mono text-sm text-ink">
+                Liquidité :{' '}
+                <span className="font-bold">{txPerHab.toFixed(3)} tx/hab</span>
+              </p>
+            )}
           </div>
-        ) : (
-          <div className="border-2 border-ink bg-paper-soft inline-flex items-center px-4 py-3">
-            <span className="font-mono text-xs text-ink-muted">Données non disponibles</span>
-          </div>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-        <p className="font-sans text-sm text-ink-muted mt-3 leading-relaxed">{description}</p>
-        <p className="font-mono text-[10px] text-ink-muted mt-3 tracking-widest uppercase">
-          Source : {source}
-        </p>
+// ─── Risques Card — 2/3 largeur ───────────────────────────────────────────────
+
+function RisquesCard({
+  score,
+  risques,
+}: {
+  score: number | null;
+  risques: RisqueItem[];
+}) {
+  const hasScore = score != null;
+  const rounded = hasScore ? Math.round(score) : null;
+  const color = rounded != null ? scoreColor(rounded) : null;
+  const isClean = rounded === 100;
+
+  const sortedRisques = [...risques].sort(
+    (a, b) => NIVEAU_SORT[a.niveau] - NIVEAU_SORT[b.niveau],
+  );
+
+  return (
+    <div className={`flex-[2] bg-paper${!hasScore ? ' opacity-40' : ''}`}>
+      {/* Header */}
+      <div className="border-b-2 border-ink px-5 py-3 flex items-center justify-between">
+        <div>
+          <p className="font-display font-semibold text-ink">Risques naturels</p>
+          <p className="font-mono text-[10px] text-ink-muted tracking-widest uppercase mt-0.5">
+            Source : Géorisques
+          </p>
+        </div>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 30 %</span>
       </div>
+
+      {/* Body */}
+      {!hasScore ? (
+        <div className="p-5 flex items-center justify-center min-h-[100px]">
+          <p className="font-mono text-sm text-ink-muted">Données insuffisantes</p>
+        </div>
+      ) : (
+        <div className="p-5 flex flex-col gap-4">
+          {color && rounded != null && (
+            <div
+              className={`${color.bg} ${color.text} inline-flex items-baseline gap-1 px-5 py-3 border-2 border-ink`}
+            >
+              <span className="font-display text-4xl font-bold tabular-nums leading-none">
+                {rounded}
+              </span>
+              <span className="font-mono text-sm">/100</span>
+            </div>
+          )}
+          {isClean ? (
+            <p className="font-mono text-xs text-ink-muted">Aucun risque majeur recensé.</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {sortedRisques.map((r, i) => (
+                <li key={i} className="flex items-start gap-2 font-mono text-xs">
+                  <span
+                    className={`${NIVEAU_CLASS[r.niveau]} px-1.5 py-0.5 text-[10px] font-bold tracking-widest uppercase shrink-0`}
+                  >
+                    {NIVEAU_LABEL[r.niveau]}
+                  </span>
+                  <span className="text-ink-muted">{r.description ?? r.type_risque}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DPE Card — 1/3 largeur ───────────────────────────────────────────────────
+
+function DpeCard({
+  score,
+  pctNonPassoire,
+}: {
+  score: number | null;
+  pctNonPassoire: number | null;
+}) {
+  const hasScore = score != null;
+  const rounded = hasScore ? Math.round(score) : null;
+  const color = rounded != null ? scoreColor(rounded) : null;
+
+  return (
+    <div className={`flex-[1] bg-paper${!hasScore ? ' opacity-40' : ''}`}>
+      {/* Header */}
+      <div className="border-b-2 border-ink px-5 py-3 flex items-center justify-between">
+        <div>
+          <p className="font-display font-semibold text-ink">Perf. énergétique</p>
+          <p className="font-mono text-[10px] text-ink-muted tracking-widest uppercase mt-0.5">
+            Source : ADEME
+          </p>
+        </div>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 10 %</span>
+      </div>
+
+      {/* Body */}
+      {!hasScore ? (
+        <div className="p-5 flex items-center justify-center min-h-[100px]">
+          <p className="font-mono text-sm text-ink-muted">Données insuffisantes</p>
+        </div>
+      ) : (
+        <div className="p-5 flex flex-col gap-3">
+          {color && rounded != null && (
+            <div
+              className={`${color.bg} ${color.text} inline-flex items-baseline gap-1 px-5 py-3 border-2 border-ink`}
+            >
+              <span className="font-display text-4xl font-bold tabular-nums leading-none">
+                {rounded}
+              </span>
+              <span className="font-mono text-sm">/100</span>
+            </div>
+          )}
+          {pctNonPassoire != null && (
+            <p className="font-mono text-sm text-ink">
+              <span className="font-bold">{pctNonPassoire} %</span>{' '}
+              de logements non-passoires (≤ étiquette E)
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

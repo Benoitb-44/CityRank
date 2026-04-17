@@ -81,7 +81,9 @@
       "Bash(ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@37.59.122.208 \"echo 'SSH OK' && docker ps --filter name=immo-score --format '{{.Names}} — {{.Status}}'\")",
       "Bash(gh run *)",
       "Bash(ssh -o StrictHostKeyChecking=no ubuntu@37.59.122.208 \"docker exec immo-score npm run ingest:dpe 2>&1\")",
-      "Bash(ssh -o StrictHostKeyChecking=no ubuntu@37.59.122.208 \"docker exec immo-score npm run compute:scores 2>&1\")"
+      "Bash(ssh -o StrictHostKeyChecking=no ubuntu@37.59.122.208 \"docker exec immo-score npm run compute:scores 2>&1\")",
+      "Bash(grep -E \"\\\\.json$|\\\\.config\\\\.|^d\")",
+      "Bash(ssh -o *)"
     ]
   }
 }
