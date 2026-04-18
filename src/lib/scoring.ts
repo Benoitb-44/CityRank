@@ -1,5 +1,5 @@
 /**
- * scoring.ts — v2
+ * scoring.ts — v3
  *
  * Algorithme de score composite 0-100 par commune (ADR-IS-002, ADR-IS-005).
  *
@@ -8,14 +8,16 @@
  *   DVF liq    : [0 →0, ≥0.05 →100] tx/hab
  *   DPE        : [≤40% →0, 100% →100] pct_non_passoire (logements ≤ classe E)
  *   Risques    : départ 100, malus MOYEN−5 / FORT−15 / TRES_FORT−20
+ *   BPE        : totalEquipEssentiels / 30 × 100, capé à 100
  *
- * Pondérations : DVF 60%, DPE 10%, Risques 30%.
+ * Pondérations v3 : DVF 45%, DPE 10%, Risques 20%, BPE 25%.
  * Agrégation géométrique pondérée — poids renormalisés sur dimensions présentes.
  * Dimensions manquantes → null (aucune imputation médiane).
  * Clip [1, 100] avant exponentiation pour éviter l'annihilation par zéro.
  */
 
 import { PrismaClient, NiveauRisque } from '@prisma/client';
+import { BPE_TOTAL } from './bpe-codes';
 
 // ─── Goalposts ────────────────────────────────────────────────────────────────
 
@@ -25,10 +27,10 @@ const DVF_LIQ_FULL   = 0.05;  // ≥ → score 100
 const DPE_NP_FLOOR   = 40;    // % non-passoire ≤ → score 0
 const DPE_NP_CEIL    = 100;   // % non-passoire = → score 100
 
-// ─── Pondérations ─────────────────────────────────────────────────────────────
+// ─── Pondérations v3 ──────────────────────────────────────────────────────────
 
-const W     = { dvf: 0.60, dpe: 0.10, risques: 0.30 } as const;
-const W_DVF = { prix: 0.70, liq: 0.30 }               as const;
+const W     = { dvf: 0.45, dpe: 0.10, risques: 0.20, bpe: 0.25 } as const;
+const W_DVF = { prix: 0.70, liq: 0.30 }                           as const;
 
 // ─── Malus risques ────────────────────────────────────────────────────────────
 
@@ -100,6 +102,13 @@ export interface RisquesDetails {
   faible: number;
 }
 
+export interface BpeDetails {
+  /** Score dimension BPE 0-100 (null = commune absente de la table bpe_communes) */
+  score: number | null;
+  /** Nombre d'équipements essentiels présents sur 30 */
+  total_equip_essentiels: number | null;
+}
+
 export interface ScoreDetails {
   /** Score composite final 0-100 (arrondi à 1 décimale) */
   score: number;
@@ -107,6 +116,7 @@ export interface ScoreDetails {
     dvf: DvfDetails;
     dpe: DpeDetails;
     risques: RisquesDetails;
+    bpe: BpeDetails;
   };
 }
 
@@ -154,7 +164,7 @@ async function fetchDvfDetails(
     : null;
 
   // Si tx_per_hab est null (population absente ou 0), le signal liquidité est indisponible.
-  // On renormalise DVF sur score_prix uniquement — le poids global DVF (0.60) reste inchangé.
+  // On renormalise DVF sur score_prix uniquement — le poids global DVF (0.45) reste inchangé.
   const score = scoreLiq != null
     ? round1(W_DVF.prix * scorePrix + W_DVF.liq * scoreLiq)
     : scorePrix;
@@ -250,6 +260,27 @@ async function fetchRisquesDetails(
   return { score: Math.max(0, 100 - malus), ...counts };
 }
 
+// ─── Requête BPE ──────────────────────────────────────────────────────────────
+
+/**
+ * Calcule le score BPE d'une commune.
+ * Formule : totalEquipEssentiels / BPE_TOTAL × 100, capé à 100.
+ */
+async function fetchBpeDetails(
+  communeId: string,
+  client: PrismaClient,
+): Promise<BpeDetails> {
+  const bpe = await client.bpeCommune.findUnique({
+    where:  { code_commune: communeId },
+    select: { total_equip_essentiels: true },
+  });
+
+  if (!bpe) return { score: null, total_equip_essentiels: null };
+
+  const score = round1(Math.min(100, (bpe.total_equip_essentiels / BPE_TOTAL) * 100));
+  return { score, total_equip_essentiels: bpe.total_equip_essentiels };
+}
+
 // ─── Fonction principale ──────────────────────────────────────────────────────
 
 const defaultClient = new PrismaClient();
@@ -271,10 +302,11 @@ export async function calculateScore(
   });
   if (!commune) return null;
 
-  const [dvf, dpe, risques] = await Promise.all([
+  const [dvf, dpe, risques, bpe] = await Promise.all([
     fetchDvfDetails(communeId, client),
     fetchDpeDetails(communeId, client),
     fetchRisquesDetails(communeId, client),
+    fetchBpeDetails(communeId, client),
   ]);
 
   // Seules les dimensions avec données participent au score (pas d'imputation)
@@ -282,9 +314,10 @@ export async function calculateScore(
   if (dvf.score     != null) dims.push({ score: dvf.score,     weight: W.dvf     });
   if (dpe.score     != null) dims.push({ score: dpe.score,     weight: W.dpe     });
   if (risques.score != null) dims.push({ score: risques.score, weight: W.risques });
+  if (bpe.score     != null) dims.push({ score: bpe.score,     weight: W.bpe     });
 
   return {
     score:   geometricScore(dims),
-    details: { dvf, dpe, risques },
+    details: { dvf, dpe, risques, bpe },
   };
 }

@@ -51,6 +51,7 @@ async function main(): Promise<ComputeResult> {
   let skipped = 0;
   let errored = 0;
   let withRisques = 0;
+  let withBpe = 0;
   const errors: string[] = [];
 
   if (TEST_MODE) {
@@ -86,6 +87,7 @@ async function main(): Promise<ComputeResult> {
         }
 
         if (result.details.risques.score != null) withRisques++;
+        if (result.details.bpe.score     != null) withBpe++;
 
         await prisma.score.upsert({
           where: { code_commune: commune.code_insee },
@@ -94,16 +96,19 @@ async function main(): Promise<ComputeResult> {
             score_global: result.score,
             score_dvf: result.details.dvf.score,
             score_dpe: result.details.dpe.score,
+            score_bpe: result.details.bpe.score,
             score_risques: result.details.risques.score,
             computed_at: new Date(),
+            version: 3,
           },
           update: {
             score_global: result.score,
             score_dvf: result.details.dvf.score,
             score_dpe: result.details.dpe.score,
+            score_bpe: result.details.bpe.score,
             score_risques: result.details.risques.score,
             computed_at: new Date(),
-            version: { increment: 1 },
+            version: 3,
           },
         });
 
@@ -134,6 +139,7 @@ async function main(): Promise<ComputeResult> {
   const duration_ms = Date.now() - startedAt;
 
   console.log(`[compute-scores] Couverture Géorisques : ${withRisques} communes avec score_risques / ${processed} total`);
+  console.log(`[compute-scores] Couverture BPE       : ${withBpe} communes avec score_bpe / ${processed} total`);
 
   return {
     communes_processed: processed,

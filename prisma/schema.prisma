@@ -53,6 +53,7 @@ model Commune {
   dvf_prix    DvfPrix[]
   dpe         DpeCommune[]
   equipements Equipement[]
+  bpe         BpeCommune?
   risques     Risque[]
   fiscalite   Fiscalite[]
   demographie Demographie[]
@@ -108,8 +109,66 @@ model DpeCommune {
 }
 
 // ─────────────────────────────────────────────
-// Table 4 : equipements
-// Base Permanente des Équipements (BPE INSEE) par commune
+// Table 4a : bpe_communes
+// Base Permanente des Équipements (BPE INSEE) 2023 — agrégé par commune
+// 30 équipements essentiels, score 0-30 brut → normalize 0-100
+// ─────────────────────────────────────────────
+
+model BpeCommune {
+  id           String @id @default(cuid())
+  code_commune String @unique
+
+  // Comptages par sous-catégorie (nombre d'équipements distincts présents)
+  education_count     Int @default(0)
+  sante_count         Int @default(0)
+  commerces_count     Int @default(0)
+  transport_count     Int @default(0)
+  culture_sport_count Int @default(0)
+
+  // 30 flags booléens — présence d'au moins 1 établissement de ce type
+  has_creche           Boolean @default(false) // C501
+  has_ecole_maternelle Boolean @default(false) // C101
+  has_ecole_primaire   Boolean @default(false) // C102
+  has_college          Boolean @default(false) // C201
+  has_lycee            Boolean @default(false) // C301
+  has_medecin          Boolean @default(false) // D201
+  has_dentiste         Boolean @default(false) // D231
+  has_pharmacie        Boolean @default(false) // D301
+  has_urgences         Boolean @default(false) // D401
+  has_maternite        Boolean @default(false) // D402
+  has_hopital          Boolean @default(false) // D501
+  has_ehpad            Boolean @default(false) // D106
+  has_hypermarche      Boolean @default(false) // B101
+  has_superette        Boolean @default(false) // B102
+  has_boulangerie      Boolean @default(false) // B201
+  has_librairie        Boolean @default(false) // B203
+  has_banque           Boolean @default(false) // B301
+  has_poste            Boolean @default(false) // B306
+  has_police           Boolean @default(false) // A101
+  has_gare_national    Boolean @default(false) // E101
+  has_gare_regional    Boolean @default(false) // E102
+  has_arret_transport  Boolean @default(false) // E103
+  has_autoroute        Boolean @default(false) // E107
+  has_aeroport         Boolean @default(false) // E201
+  has_cinema           Boolean @default(false) // F101
+  has_salle_spectacle  Boolean @default(false) // F111
+  has_piscine          Boolean @default(false) // F201
+  has_stade            Boolean @default(false) // F301
+  has_gymnase          Boolean @default(false) // F302
+  has_tennis           Boolean @default(false) // F303
+
+  // Score brut : nombre de flags à true (0-30)
+  total_equip_essentiels Int @default(0)
+
+  updated_at DateTime @updatedAt
+
+  commune Commune @relation(fields: [code_commune], references: [code_insee], onDelete: Cascade)
+
+  @@map("bpe_communes")
+}
+
+// ─────────────────────────────────────────────
+// Table 4b : equipements (ancien modèle normalisé — conservé pour rétrocompatibilité)
 // ─────────────────────────────────────────────
 
 model Equipement {
