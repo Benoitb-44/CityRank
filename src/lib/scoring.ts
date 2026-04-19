@@ -31,6 +31,8 @@ const MIN_TX_RECENT = 5;
 const DVF_LIQ_FULL  = 0.05;
 /** Plancher liquidité — commune active au minimum, ou marché trop peu observé. */
 const DVF_LIQ_FLOOR = 5;
+/** Population minimale pour que le ratio tx/hab soit statistiquement fiable (seuil INSEE bassin de vie autonome). */
+const MIN_POP_FOR_LIQ_RATIO = 500;
 
 // ─── Constantes DPE ───────────────────────────────────────────────────────────
 
@@ -167,6 +169,7 @@ interface DvfPrixByTypeRow {
 interface DvfLiqRow {
   tx_per_hab:      string | null;
   nb_transactions: string;
+  population:      string | null;
 }
 
 async function fetchDvfDetails(
@@ -187,7 +190,8 @@ async function fetchDvfDetails(
     `,
     client.$queryRaw<DvfLiqRow[]>`
       SELECT (COUNT(*)::float / NULLIF(c.population, 0))::text AS tx_per_hab,
-             COUNT(*)::text                                     AS nb_transactions
+             COUNT(*)::text                                     AS nb_transactions,
+             c.population::text                                 AS population
       FROM immo_score.dvf_prix d
       JOIN immo_score.communes c ON c.code_insee = d.code_commune
       WHERE d.code_commune = ${communeId}
@@ -232,14 +236,17 @@ async function fetchDvfDetails(
     ? parseFloat(liqRows[0].tx_per_hab)
     : null;
   const nbTx      = liqRows.length > 0 ? parseInt(liqRows[0].nb_transactions) : 0;
+  const population = liqRows.length > 0 && liqRows[0].population != null
+    ? parseInt(liqRows[0].population)
+    : 0;
 
-  // Si tx_per_hab null → signal liquidité absent, renormalisé sur prix uniquement.
-  // Si nbTx < MIN_TX_RECENT → marché trop peu observé sur 3 ans, floor liquidité.
-  // Évite que 2-3 ventes dans une commune de 50 hab créent un ratio tx/pop = 100%.
+  // Si tx_per_hab null (population=0 ou null) → signal liquidité absent, renormalisé sur prix uniquement.
+  // Si nbTx < MIN_TX_RECENT ou population < MIN_POP_FOR_LIQ_RATIO → volume insuffisant, floor liquidité.
+  // Évite que quelques ventes dans une commune rurale créent un ratio tx/pop artificiellement élevé.
   let scoreLiq: number | null;
   if (txPerHab == null) {
     scoreLiq = null;
-  } else if (nbTx < MIN_TX_RECENT) {
+  } else if (nbTx < MIN_TX_RECENT || population < MIN_POP_FOR_LIQ_RATIO) {
     scoreLiq = DVF_LIQ_FLOOR;
   } else {
     scoreLiq = round1(Math.max(DVF_LIQ_FLOOR, clamp(txPerHab / DVF_LIQ_FULL * 100, 0, 100)));

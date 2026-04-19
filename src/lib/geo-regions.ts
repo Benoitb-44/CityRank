@@ -1,56 +1,57 @@
 /**
  * geo-regions.ts
- * Mapping département → région INSEE 2016 pour l'imputation DVF.
+ * Mapping département → code INSEE région 2016 pour l'imputation DVF.
+ * Les valeurs correspondent au champ `communes.region` (codeRegion de geo.api.gouv.fr).
  * Utilisé par compute-scores.ts pour les communes sans données DVF
  * (Alsace-Moselle : 57/67/68 + Mayotte : 976).
  */
 
 export const DEPT_TO_REGION: Record<string, string> = {
-  // Auvergne-Rhône-Alpes
-  '01': 'Auvergne-Rhône-Alpes', '03': 'Auvergne-Rhône-Alpes', '07': 'Auvergne-Rhône-Alpes',
-  '15': 'Auvergne-Rhône-Alpes', '26': 'Auvergne-Rhône-Alpes', '38': 'Auvergne-Rhône-Alpes',
-  '42': 'Auvergne-Rhône-Alpes', '43': 'Auvergne-Rhône-Alpes', '63': 'Auvergne-Rhône-Alpes',
-  '69': 'Auvergne-Rhône-Alpes', '73': 'Auvergne-Rhône-Alpes', '74': 'Auvergne-Rhône-Alpes',
-  // Bourgogne-Franche-Comté
-  '21': 'Bourgogne-Franche-Comté', '25': 'Bourgogne-Franche-Comté', '39': 'Bourgogne-Franche-Comté',
-  '58': 'Bourgogne-Franche-Comté', '70': 'Bourgogne-Franche-Comté', '71': 'Bourgogne-Franche-Comté',
-  '89': 'Bourgogne-Franche-Comté', '90': 'Bourgogne-Franche-Comté',
-  // Bretagne
-  '22': 'Bretagne', '29': 'Bretagne', '35': 'Bretagne', '56': 'Bretagne',
-  // Centre-Val de Loire
-  '18': 'Centre-Val de Loire', '28': 'Centre-Val de Loire', '36': 'Centre-Val de Loire',
-  '37': 'Centre-Val de Loire', '41': 'Centre-Val de Loire', '45': 'Centre-Val de Loire',
-  // Corse
-  '2A': 'Corse', '2B': 'Corse',
-  // Grand Est (inclut Alsace-Moselle sans DVF : 57, 67, 68)
-  '08': 'Grand Est', '10': 'Grand Est', '51': 'Grand Est', '52': 'Grand Est',
-  '54': 'Grand Est', '55': 'Grand Est', '57': 'Grand Est', '67': 'Grand Est',
-  '68': 'Grand Est', '88': 'Grand Est',
-  // Hauts-de-France
-  '02': 'Hauts-de-France', '59': 'Hauts-de-France', '60': 'Hauts-de-France',
-  '62': 'Hauts-de-France', '80': 'Hauts-de-France',
-  // Île-de-France
-  '75': 'Île-de-France', '77': 'Île-de-France', '78': 'Île-de-France',
-  '91': 'Île-de-France', '92': 'Île-de-France', '93': 'Île-de-France',
-  '94': 'Île-de-France', '95': 'Île-de-France',
-  // Normandie
-  '14': 'Normandie', '27': 'Normandie', '50': 'Normandie', '61': 'Normandie', '76': 'Normandie',
-  // Nouvelle-Aquitaine
-  '16': 'Nouvelle-Aquitaine', '17': 'Nouvelle-Aquitaine', '19': 'Nouvelle-Aquitaine',
-  '23': 'Nouvelle-Aquitaine', '24': 'Nouvelle-Aquitaine', '33': 'Nouvelle-Aquitaine',
-  '40': 'Nouvelle-Aquitaine', '47': 'Nouvelle-Aquitaine', '64': 'Nouvelle-Aquitaine',
-  '79': 'Nouvelle-Aquitaine', '86': 'Nouvelle-Aquitaine', '87': 'Nouvelle-Aquitaine',
-  // Occitanie
-  '09': 'Occitanie', '11': 'Occitanie', '12': 'Occitanie', '30': 'Occitanie',
-  '31': 'Occitanie', '32': 'Occitanie', '34': 'Occitanie', '46': 'Occitanie',
-  '48': 'Occitanie', '65': 'Occitanie', '66': 'Occitanie', '81': 'Occitanie', '82': 'Occitanie',
-  // Pays de la Loire
-  '44': 'Pays de la Loire', '49': 'Pays de la Loire', '53': 'Pays de la Loire',
-  '72': 'Pays de la Loire', '85': 'Pays de la Loire',
-  // Provence-Alpes-Côte d'Azur
-  '04': 'PACA', '05': 'PACA', '06': 'PACA', '13': 'PACA', '83': 'PACA', '84': 'PACA',
-  // DOM (976 = Mayotte, sans DVF)
-  '971': 'DOM', '972': 'DOM', '973': 'DOM', '974': 'DOM', '976': 'DOM',
+  // 84 — Auvergne-Rhône-Alpes
+  '01': '84', '03': '84', '07': '84',
+  '15': '84', '26': '84', '38': '84',
+  '42': '84', '43': '84', '63': '84',
+  '69': '84', '73': '84', '74': '84',
+  // 27 — Bourgogne-Franche-Comté
+  '21': '27', '25': '27', '39': '27',
+  '58': '27', '70': '27', '71': '27',
+  '89': '27', '90': '27',
+  // 53 — Bretagne
+  '22': '53', '29': '53', '35': '53', '56': '53',
+  // 24 — Centre-Val de Loire
+  '18': '24', '28': '24', '36': '24',
+  '37': '24', '41': '24', '45': '24',
+  // 94 — Corse
+  '2A': '94', '2B': '94',
+  // 44 — Grand Est (inclut Alsace-Moselle sans DVF : 57, 67, 68)
+  '08': '44', '10': '44', '51': '44', '52': '44',
+  '54': '44', '55': '44', '57': '44', '67': '44',
+  '68': '44', '88': '44',
+  // 32 — Hauts-de-France
+  '02': '32', '59': '32', '60': '32',
+  '62': '32', '80': '32',
+  // 11 — Île-de-France
+  '75': '11', '77': '11', '78': '11',
+  '91': '11', '92': '11', '93': '11',
+  '94': '11', '95': '11',
+  // 28 — Normandie
+  '14': '28', '27': '28', '50': '28', '61': '28', '76': '28',
+  // 75 — Nouvelle-Aquitaine
+  '16': '75', '17': '75', '19': '75',
+  '23': '75', '24': '75', '33': '75',
+  '40': '75', '47': '75', '64': '75',
+  '79': '75', '86': '75', '87': '75',
+  // 76 — Occitanie
+  '09': '76', '11': '76', '12': '76', '30': '76',
+  '31': '76', '32': '76', '34': '76', '46': '76',
+  '48': '76', '65': '76', '66': '76', '81': '76', '82': '76',
+  // 52 — Pays de la Loire
+  '44': '52', '49': '52', '53': '52',
+  '72': '52', '85': '52',
+  // 93 — Provence-Alpes-Côte d'Azur
+  '04': '93', '05': '93', '06': '93', '13': '93', '83': '93', '84': '93',
+  // DOM — chaque département-région a son propre code région
+  '971': '01', '972': '02', '973': '03', '974': '04', '976': '06',
 };
 
 /** Départements exclus du DVF : livre foncier alsacien-mosellan (57/67/68) et Mayotte (976). */
