@@ -6,9 +6,10 @@
  * generateMetadata     : titre + description dynamiques pour le SEO.
  */
 
-import { PrismaClient, NiveauRisque } from '@prisma/client';
+import { PrismaClient, NiveauRisque, type BpeCommune } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { BPE_CODES } from '@/lib/bpe-codes';
 
 export const revalidate = 86400; // ISR 24h
 
@@ -139,7 +140,7 @@ export default async function CommunePage({
 }) {
   const commune = await prisma.commune.findUnique({
     where: { slug: params.slug },
-    include: { score: true },
+    include: { score: true, bpe: true },
   });
 
   if (!commune) notFound();
@@ -307,14 +308,21 @@ export default async function CommunePage({
 
         <SectionTitle index="01" title="Détail des dimensions" />
 
-        {/* Layout asymétrique : DVF pleine largeur + Risques 2/3 | DPE 1/3 */}
+        {/* Layout v3.1 : DVF → BPE → Risques | DPE */}
         <div className="border-2 border-ink">
 
-          {/* DVF — pleine largeur, score en grand */}
+          {/* DVF — pleine largeur, 45 % */}
           <DvfCard
             score={score?.score_dvf ?? null}
             prixM2Median={prixM2Median}
             txPerHab={txPerHab}
+            imputed={score?.dvf_imputed ?? false}
+          />
+
+          {/* BPE — pleine largeur, 25 % */}
+          <BpeCard
+            score={score?.score_bpe ?? null}
+            bpe={commune.bpe}
           />
 
           {/* Risques + DPE côte à côte */}
@@ -392,6 +400,7 @@ export default async function CommunePage({
           <span className="hidden sm:block w-px h-4 bg-ink shrink-0 mt-0.5" />
           <p className="font-mono text-xs text-ink-muted">
             DVF — Demandes de Valeurs Foncières (data.gouv.fr) ·{' '}
+            INSEE BPE — Base Permanente des Équipements (insee.fr) ·{' '}
             DPE ADEME — Diagnostics de Performance Énergétique (data.ademe.fr) ·{' '}
             Géorisques — risques naturels et technologiques (georisques.gouv.fr) ·{' '}
             Données open data, mise à jour annuelle.
@@ -427,10 +436,12 @@ function DvfCard({
   score,
   prixM2Median,
   txPerHab,
+  imputed,
 }: {
   score: number | null;
   prixM2Median: number | null;
   txPerHab: number | null;
+  imputed: boolean;
 }) {
   const hasScore = score != null;
   const rounded = hasScore ? Math.round(score) : null;
@@ -446,7 +457,7 @@ function DvfCard({
             Source : data.gouv.fr
           </p>
         </div>
-        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 60 %</span>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 45 %</span>
       </div>
 
       {/* Body */}
@@ -481,6 +492,101 @@ function DvfCard({
                 <span className="font-bold">{txPerHab.toFixed(3)} tx/hab</span>
               </p>
             )}
+            {imputed && (
+              <p className="font-mono text-[10px] text-ink-muted border border-ink-muted px-2 py-0.5 inline-block self-start">
+                Score imputé — données DVF insuffisantes, estimation régionale utilisée
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BPE Card — pleine largeur, 25 % ─────────────────────────────────────────
+
+const BPE_CAT_LABELS: Record<string, string> = {
+  education: 'Éducation',
+  sante: 'Santé',
+  commerces: 'Commerces & Services',
+  transport: 'Transport',
+  cultureSport: 'Culture & Sport',
+};
+
+function BpeCard({
+  score,
+  bpe,
+}: {
+  score: number | null;
+  bpe: BpeCommune | null;
+}) {
+  const hasScore = score != null;
+  const rounded = hasScore ? Math.round(score) : null;
+  const color = rounded != null ? scoreColor(rounded) : null;
+
+  type CategorySummary = { label: string; present: string[]; total: number };
+  const categories: CategorySummary[] = Object.entries(BPE_CAT_LABELS).map(([key, label]) => {
+    const codes = BPE_CODES.filter((c) => c.category === key);
+    const present = bpe
+      ? codes.filter((c) => (bpe as unknown as Record<string, boolean>)[c.flag]).map((c) => c.label)
+      : [];
+    return { label, present, total: codes.length };
+  });
+
+  return (
+    <div className={`border-b-2 border-ink bg-paper${!hasScore ? ' opacity-40' : ''}`}>
+      {/* Header */}
+      <div className="border-b-2 border-ink px-6 py-3 flex items-center justify-between">
+        <div>
+          <p className="font-display font-semibold text-ink">Équipements & Services BPE</p>
+          <p className="font-mono text-[10px] text-ink-muted tracking-widest uppercase mt-0.5">
+            Source : INSEE BPE
+          </p>
+        </div>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 25 %</span>
+      </div>
+
+      {/* Body */}
+      {!hasScore ? (
+        <div className="px-6 py-10 flex items-center justify-center">
+          <p className="font-mono text-sm text-ink-muted">Données insuffisantes</p>
+        </div>
+      ) : (
+        <div className="px-6 py-5 flex flex-col sm:flex-row items-start gap-6">
+          {color && rounded != null && (
+            <div
+              className={`${color.bg} ${color.text} border-2 border-ink px-8 py-5 flex items-baseline gap-2 shrink-0`}
+            >
+              <span className="font-display text-6xl font-bold tabular-nums leading-none">
+                {rounded}
+              </span>
+              <span className="font-mono text-base">/100</span>
+            </div>
+          )}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {categories.map(({ label, present, total }) => (
+              <div key={label} className="border border-ink p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="font-mono text-xs font-bold text-ink">{label}</p>
+                  <span className="font-mono text-[10px] text-ink-muted tabular-nums">
+                    {present.length}/{total}
+                  </span>
+                </div>
+                {present.length > 0 ? (
+                  <ul className="flex flex-col gap-0.5">
+                    {present.map((name) => (
+                      <li key={name} className="font-mono text-[10px] text-ink-muted flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-score-high inline-block shrink-0" />
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="font-mono text-[10px] text-ink-muted">Aucun équipement recensé</p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -516,7 +622,7 @@ function RisquesCard({
             Source : Géorisques
           </p>
         </div>
-        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 30 %</span>
+        <span className="font-mono text-xs text-ink-muted tabular-nums">Poids : 20 %</span>
       </div>
 
       {/* Body */}

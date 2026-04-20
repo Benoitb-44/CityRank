@@ -11,7 +11,7 @@ const EXAMPLE_COMMUNES = [
 
 const STATS = [
   { value: '34 875', label: 'communes' },
-  { value: '3', label: 'sources de données' },
+  { value: '4', label: 'sources de données' },
   { value: '0–100', label: 'score national' },
 ]
 

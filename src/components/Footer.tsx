@@ -13,7 +13,7 @@ export default function Footer() {
             Méthodologie
           </a>
           <p className="font-mono text-xs text-ink-muted">
-            Sources : DVF · ADEME · INSEE · Géorisques
+            Sources : DVF · ADEME · INSEE BPE · Géorisques
           </p>
         </div>
       </div>
