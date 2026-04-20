@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 
 const prisma = new PrismaClient();
 const BATCH_SIZE = 20000;
-const BASE_URL = 'https://immorank.fr';
+const BASE_URL = 'https://cityrank.fr';
 
 const DEPARTEMENTS = [
   '01','02','03','04','05','06','07','08','09','10',

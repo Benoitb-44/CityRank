@@ -4,8 +4,8 @@ description: Statut des tickets INFRA Sprint 0 au 2026-04-14
 type: project
 ---
 
-INFRA-01 (repo GitHub) : DONE — repo Benoitb-44/immo-score existe sur GitHub.
-INFRA-02 (Next.js 14 + Tailwind + TypeScript) : DONE — setup bootstrappé manuellement dans /workspaces/immo-score.
+INFRA-01 (repo GitHub) : DONE — repo Benoitb-44/cityrank existe sur GitHub.
+INFRA-02 (Next.js 14 + Tailwind + TypeScript) : DONE — setup bootstrappé manuellement dans /workspaces/cityrank.
 INFRA-06 (Design system Precision Brutalism) : DONE — page `/design` avec tokens couleurs, typo, espacement, composants. Fonts : Space Grotesk (display) + Inter (sans) via next/font/google.
 
 **Why:** Fondations techniques nécessaires avant le pipeline de données.

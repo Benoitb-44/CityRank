@@ -123,7 +123,7 @@ export async function generateMetadata({
 
   return {
     title: `Immobilier ${commune.nom} (${commune.departement}) : Score ${score ?? '—'}/100, Prix, DPE, Risques`,
-    description: `${commune.nom} obtient un score Immo Score de ${score ?? '—'}/100. Analyse complète : prix DVF, diagnostic énergétique DPE, risques naturels. Données open data actualisées.`,
+    description: `${commune.nom} obtient un score CityRank de ${score ?? '—'}/100. Analyse complète : prix DVF, diagnostic énergétique DPE, risques naturels. Données open data actualisées.`,
     alternates: {
       canonical: `/communes/${params.slug}`,
     },
@@ -224,7 +224,7 @@ export default async function CommunePage({
     additionalProperty: [
       {
         '@type': 'PropertyValue',
-        name: 'Score Immo Score',
+        name: 'Score CityRank',
         value: globalRounded,
         minValue: 0,
         maxValue: 100,

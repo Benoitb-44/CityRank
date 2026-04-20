@@ -44,7 +44,7 @@ function printDimension(title: string, r: PercRow, unit = '', d = 1) {
 }
 
 async function main() {
-  console.log('# Distribution des données brutes — Immo Score');
+  console.log('# Distribution des données brutes — CityRank');
   console.log(`\n_Généré le ${new Date().toLocaleString('fr-FR')}_`);
 
   // ── 1. DVF — Prix m² médian par commune ────────────────────────────────────

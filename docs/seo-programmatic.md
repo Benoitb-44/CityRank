@@ -1,12 +1,12 @@
-# Skill : SEO Programmatique — Immo Score
+# Skill : SEO Programmatique — CityRank
 
 ## Template Meta Tags
 
 ```typescript
 // src/lib/seo.ts
 export function generateCommuneMetadata(commune: CommuneWithScore) {
-  const title = `Immobilier ${commune.nom} (${commune.departement}) : Score ${commune.score_global}/100, Prix ${commune.prix_m2}€/m² | Immo Score`;
-  const description = `${commune.nom} obtient un Immo Score de ${commune.score_global}/100. Prix médian : ${commune.prix_m2}€/m², DPE moyen : ${commune.dpe_moyen}, Taxe foncière : ${commune.taux_foncier}%. Analyse complète des données immobilières.`;
+  const title = `Immobilier ${commune.nom} (${commune.departement}) : Score ${commune.score_global}/100, Prix ${commune.prix_m2}€/m² | CityRank`;
+  const description = `${commune.nom} obtient un CityRank de ${commune.score_global}/100. Prix médian : ${commune.prix_m2}€/m², DPE moyen : ${commune.dpe_moyen}, Taxe foncière : ${commune.taux_foncier}%. Analyse complète des données immobilières.`;
 
   return {
     title,
@@ -46,7 +46,7 @@ export function generateCommuneJsonLd(commune: CommuneWithScore) {
     additionalProperty: [
       {
         '@type': 'PropertyValue',
-        name: 'Immo Score',
+        name: 'CityRank',
         value: commune.score_global,
         maxValue: 100,
         minValue: 0,

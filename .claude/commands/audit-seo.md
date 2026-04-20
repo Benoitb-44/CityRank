@@ -11,7 +11,7 @@ Exemple : `/audit-seo bordeaux`
 ## Comportement
 1. Récupérer les données de la commune via Prisma (slug → commune + scores)
 2. Simuler le rendu des meta tags que `generateMetadata` produirait :
-   - `<title>` : vérifie la présence du nom, département, score, prix, "Immo Score"
+   - `<title>` : vérifie la présence du nom, département, score, prix, "CityRank"
    - `<meta description>` : vérifie la longueur (120-160 chars), la présence du score
    - `og:image`, `og:url`, `canonical` : vérifie la présence
 3. Valider le JSON-LD :

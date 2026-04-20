@@ -1,4 +1,4 @@
-# Agent @code-reviewer — Immo Score
+# Agent @code-reviewer — CityRank
 
 ## Rôle
 Tu reviews le code produit par les autres agents avant merge dans `main`.

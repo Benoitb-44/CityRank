@@ -63,7 +63,7 @@ export async function generateMetadata({
     // DB indisponible au build
   }
   return {
-    title: `Immobilier ${nom} — Score par commune | ImmoRank`,
+    title: `Immobilier ${nom} — Score par commune | CityRank`,
     description: `Classement des ${count} communes du ${nom} par score d'attractivité immobilière. Données DVF, DPE et Géorisques.`,
     alternates: { canonical: `/departements/${params.code}` },
   };
@@ -106,7 +106,7 @@ export default async function DepartementPage({
       '@type': 'ListItem',
       position: i + 1,
       name: c.nom,
-      url: `https://immorank.fr/communes/${c.slug}`,
+      url: `https://cityrank.fr/communes/${c.slug}`,
     })),
   };
 

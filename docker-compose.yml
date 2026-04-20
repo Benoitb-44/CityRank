@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: immo-score-db
+    container_name: cityrank-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-immo_score}
@@ -17,9 +17,9 @@ services:
       timeout: 5s
       retries: 5
 
-  immo-score:
+  cityrank:
     build: .
-    container_name: immo-score
+    container_name: cityrank
     restart: unless-stopped
     ports:
       - "3001:3000"

@@ -28,7 +28,7 @@ const typographyTokens = [
   { label: "Display / H1",   className: "font-display text-4xl font-bold",   sample: "Score Paris 15e : 74/100" },
   { label: "Display / H2",   className: "font-display text-2xl font-semibold", sample: "Prix médian au m²" },
   { label: "Display / H3",   className: "font-display text-xl font-semibold", sample: "Analyse DPE commune" },
-  { label: "Body — Large",   className: "font-sans text-lg",                  sample: "Bordeaux obtient un score Immo Score de 82/100, soit le 3e meilleur score de Gironde." },
+  { label: "Body — Large",   className: "font-sans text-lg",                  sample: "Bordeaux obtient un score CityRank de 82/100, soit le 3e meilleur score de Gironde." },
   { label: "Body — Default", className: "font-sans text-base",                sample: "Le score est calculé à partir de 6 sources open data : DVF, DPE ADEME, BPE INSEE, Géorisques, taxe foncière et démographie INSEE." },
   { label: "Body — Small",   className: "font-sans text-sm text-ink-muted",   sample: "Données mises à jour en janvier 2026. Sources : DVF, ADEME, INSEE." },
   { label: "Mono — Data",    className: "font-mono text-base tabular-nums",   sample: "3 842 €/m² · +4.2% · 2 847 transactions" },

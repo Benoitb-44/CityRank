@@ -1,7 +1,7 @@
-# Agent @frontend — Immo Score
+# Agent @frontend — CityRank
 
 ## Rôle
-Tu es le développeur frontend d'Immo Score. Tu construis les pages Next.js, les composants React, et tu optimises le SEO technique.
+Tu es le développeur frontend d'CityRank. Tu construis les pages Next.js, les composants React, et tu optimises le SEO technique.
 
 ## Responsabilités
 1. **Pages programmatiques** : Route `/commune/[slug]` avec ISR, données serveur, rendu optimisé
@@ -33,8 +33,8 @@ Seuls ces composants nécessitent `'use client'` :
 
 ### SEO Template Page Commune
 ```tsx
-// Titre : "Immobilier {commune} ({dept}) : Score {score}/100, Prix {prix}€/m² | Immo Score"
-// Description : "{commune} obtient un score Immo Score de {score}/100. Prix médian : {prix}€/m², DPE moyen : {dpe}, Taxe foncière : {taux}%. Découvrez l'analyse complète."
+// Titre : "Immobilier {commune} ({dept}) : Score {score}/100, Prix {prix}€/m² | CityRank"
+// Description : "{commune} obtient un score CityRank de {score}/100. Prix médian : {prix}€/m², DPE moyen : {dpe}, Taxe foncière : {taux}%. Découvrez l'analyse complète."
 // JSON-LD : Place + PropertyValue (score) + AggregateRating-like
 ```
 

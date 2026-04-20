@@ -1,4 +1,4 @@
-# Mode d'emploi — Immo Score × Claude Code
+# Mode d'emploi — CityRank × Claude Code
 
 > Pour Benoît — Fondateur solo, non-technique, qui pilote le projet entièrement via les agents Claude Code.
 > 
@@ -47,7 +47,7 @@ Chaque conversation est une **session de travail**. À la fin d'une session, les
 
 ### Principe
 
-Les agents sont des **personas spécialisés**. Quand tu invoques `@cto`, Claude adopte la posture, les priorités et les conventions du CTO d'Immo Score. Il connaît l'archi, le budget, les contraintes.
+Les agents sont des **personas spécialisés**. Quand tu invoques `@cto`, Claude adopte la posture, les priorités et les conventions du CTO d'CityRank. Il connaît l'archi, le budget, les contraintes.
 
 **Syntaxe :** commence ton message par `@nom-agent`
 

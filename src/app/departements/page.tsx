@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== 'production') globalThis.__prisma = prisma;
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: 'Explorer par département | ImmoRank',
+  title: 'Explorer par département | CityRank',
   description:
     "Comparez les communes de France par département. Scores d'attractivité immobilière basés sur DVF, DPE et Géorisques.",
   alternates: { canonical: '/departements' },

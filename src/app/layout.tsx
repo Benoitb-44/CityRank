@@ -18,12 +18,12 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "Immo Score — Score d'attractivité immobilière par commune",
-    template: "%s | Immo Score",
+    default: "CityRank — Score d'attractivité immobilière par commune",
+    template: "%s | CityRank",
   },
   description:
     "Découvrez le score d'attractivité immobilière de chaque commune de France. Basé sur les prix DVF, le DPE, les équipements, les risques et la fiscalité.",
-  metadataBase: new URL("https://immoscore.fr"),
+  metadataBase: new URL("https://cityrank.fr"),
   robots: {
     index: true,
     follow: true,

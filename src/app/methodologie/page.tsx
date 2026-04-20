@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 export const revalidate = 604800; // 7 jours
 
 export const metadata: Metadata = {
-  title: 'Méthodologie du score | Immo Score',
+  title: 'Méthodologie du score | CityRank',
   description:
-    'Comment est calculé le score Immo Score : 4 dimensions (DVF, BPE, Risques, DPE), sources officielles, limitations transparentes. Version v3.1.',
+    'Comment est calculé le score CityRank : 4 dimensions (DVF, BPE, Risques, DPE), sources officielles, limitations transparentes. Version v3.1.',
   alternates: {
     canonical: '/methodologie',
   },
@@ -16,13 +16,13 @@ export const metadata: Metadata = {
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Article',
-  headline: 'Méthodologie du score Immo Score v3.1',
+  headline: 'Méthodologie du score CityRank v3.1',
   description:
-    'Documentation complète de la méthode de calcul du score Immo Score : 4 dimensions, sources open data, limitations.',
-  author: { '@type': 'Organization', name: 'Immo Score' },
+    'Documentation complète de la méthode de calcul du score CityRank : 4 dimensions, sources open data, limitations.',
+  author: { '@type': 'Organization', name: 'CityRank' },
   datePublished: '2026-04-19',
   dateModified: '2026-04-19',
-  url: 'https://immorank.fr/methodologie',
+  url: 'https://cityrank.fr/methodologie',
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -62,10 +62,10 @@ export default function MethodologiePage() {
             Algorithme · v3.1 · 19 avril 2026
           </p>
           <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink leading-tight mb-4">
-            Méthodologie du score Immo Score
+            Méthodologie du score CityRank
           </h1>
           <p className="font-sans text-lg text-ink-muted max-w-2xl leading-relaxed mb-6">
-            Le score Immo Score attribue à chaque commune française une note sur 100 reflétant son
+            Le score CityRank attribue à chaque commune française une note sur 100 reflétant son
             attractivité immobilière globale. Il combine quatre dimensions objectives à partir de
             données publiques officielles.
           </p>
@@ -557,10 +557,10 @@ export default function MethodologiePage() {
             Pour toute question méthodologique, signaler une erreur sur une commune, ou proposer
             une amélioration :{' '}
             <a
-              href="mailto:contact@immorank.fr"
+              href="mailto:contact@cityrank.fr"
               className="font-mono text-sm text-ink underline hover:text-accent transition-colors"
             >
-              contact@immorank.fr
+              contact@cityrank.fr
             </a>
           </p>
         </section>

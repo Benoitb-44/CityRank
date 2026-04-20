@@ -8,7 +8,7 @@ Met à jour le Journal de Sessions Notion avec le résumé de la session en cour
 ```
 
 ## Comportement
-1. Lire la page Journal de Sessions Immo Score dans Notion
+1. Lire la page Journal de Sessions CityRank dans Notion
 2. Archiver la "Dernière Session" existante dans un toggle
 3. Écrire la nouvelle session en haut :
    - Date et thème

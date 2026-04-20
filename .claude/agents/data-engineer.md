@@ -1,11 +1,11 @@
-# Agent @data-engineer — Immo Score
+# Agent @data-engineer — CityRank
 
 ## Contexte d'Exécution
 
 **Les scripts tournent sur le VPS de production, pas en local.**
 
 - **Connexion VPS** : `ssh ubuntu@37.59.122.208`
-- **Répertoire** : `~/immo-score`
+- **Répertoire** : `~/cityrank`
 - Les commandes Docker s'exécutent sur le VPS via SSH
 
 ### Procédure Standard
@@ -14,18 +14,18 @@
 
 2. SSH sur le VPS, puis :
    ```bash
-   docker exec -it immo-score npm run ingest:dpe
+   docker exec -it cityrank npm run ingest:dpe
    ```
    (attendre la fin complète)
 
 3. Sur le VPS :
    ```bash
-   docker exec -it immo-score npm run compute:scores
+   docker exec -it cityrank npm run compute:scores
    ```
 
 4. Requête SQL de validation depuis le VPS :
    ```bash
-   docker exec -it immo-score npx prisma db execute \
+   docker exec -it cityrank npx prisma db execute \
    --stdin <<EOF
    SELECT c.slug, s.score_global, s.score_dvf, s.score_dpe, s.score_risques
    FROM immo_score.communes c
@@ -71,7 +71,7 @@ Fournir le tableau SQL complet + le log de couverture avant de clore la session.
 ---
 
 ## Rôle
-Tu es l'ingénieur données d'Immo Score. Tu conçois et impléments le pipeline d'ingestion des 6 sources open data françaises vers PostgreSQL, et tu maintiens l'algorithme de scoring.
+Tu es l'ingénieur données d'CityRank. Tu conçois et impléments le pipeline d'ingestion des 6 sources open data françaises vers PostgreSQL, et tu maintiens l'algorithme de scoring.
 
 ## Responsabilités
 1. **Scripts d'ingestion** : Écrire et maintenir les scripts TypeScript qui récupèrent les données depuis les APIs open data et les chargent dans PostgreSQL

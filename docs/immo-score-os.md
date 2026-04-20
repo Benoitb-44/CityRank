@@ -1,4 +1,4 @@
-# Immo Score — OS v2 : Document Stratégique Fondateur
+# CityRank — OS v2 : Document Stratégique Fondateur
 
 > **Date** : 13 avril 2026
 > **Auteur** : Benoît (Founder) + Claude (Mode CEO → PM → CTO)
@@ -13,11 +13,11 @@
 **BLUF** : Devenir la référence française du scoring immobilier communal en exploitant exclusivement l'open data, avec un modèle économique progressif (SEO → affiliation → API B2B).
 
 **Énoncé de vision** :
-> Immo Score démocratise l'intelligence immobilière locale. Chaque commune de France dispose d'une page publique, gratuite, avec un score d'attractivité objectif et transparent basé à 100% sur des données publiques. Là où les portails immobiliers vendent des estimations opaques, Immo Score offre la transparence comme produit.
+> CityRank démocratise l'intelligence immobilière locale. Chaque commune de France dispose d'une page publique, gratuite, avec un score d'attractivité objectif et transparent basé à 100% sur des données publiques. Là où les portails immobiliers vendent des estimations opaques, CityRank offre la transparence comme produit.
 
 ### 1.2 Positionnement
 
-| Critère | MeilleursAgents | Villedereve.fr | Immo Score |
+| Critère | MeilleursAgents | Villedereve.fr | CityRank |
 |---------|----------------|----------------|------------|
 | Couverture | ~15 000 communes | ~35 000 communes | ~35 000 communes |
 | Sources données | Propriétaires + notaires | Open data INSEE/ADEME | Open data DVF/ADEME/INSEE/Géorisques |
@@ -27,7 +27,7 @@
 | Risques naturels | Non | Partiellement | Oui (Géorisques) |
 | Taxe foncière | Non | Non | Oui (data.economie.gouv) |
 
-**Positionnement différenciant** : Immo Score est le seul site à combiner prix réels (DVF), performance énergétique (DPE), fiscalité locale (taxe foncière), équipements (BPE) ET risques naturels en un score unique. Villedereve couvre la qualité de vie ; Immo Score couvre la décision d'investissement.
+**Positionnement différenciant** : CityRank est le seul site à combiner prix réels (DVF), performance énergétique (DPE), fiscalité locale (taxe foncière), équipements (BPE) ET risques naturels en un score unique. Villedereve couvre la qualité de vie ; CityRank couvre la décision d'investissement.
 
 ### 1.3 Hypothèses à Valider
 
@@ -65,7 +65,7 @@
 | ID | Feature | JTBD (Job To Be Done) | User Story |
 |----|---------|----------------------|------------|
 | F1 | Page commune avec données agrégées | "Quand je cherche à acheter dans une commune, je veux voir toutes les données clés en un coup d'œil pour décider si ça vaut le coup d'investiguer plus" | En tant qu'acheteur potentiel, je veux voir les prix, DPE, taxe foncière, équipements et risques d'une commune sur une seule page |
-| F2 | Score composite Immo Score (0-100) | "Je veux un indicateur simple qui me dit si cette commune est un bon investissement comparé aux autres" | En tant qu'investisseur, je veux un score synthétique pour comparer rapidement les communes entre elles |
+| F2 | Score composite CityRank (0-100) | "Je veux un indicateur simple qui me dit si cette commune est un bon investissement comparé aux autres" | En tant qu'investisseur, je veux un score synthétique pour comparer rapidement les communes entre elles |
 | F3 | Recherche commune (autocomplete) | "Je veux trouver ma commune en tapant son nom" | En tant qu'utilisateur, je veux une barre de recherche avec autocomplétion sur les 35 000 communes |
 | F4 | Pages SEO optimisées (meta, schema, sitemap) | "Google doit trouver et comprendre chaque page" | En tant que moteur de recherche, je veux des pages avec title, description, structured data et sitemap |
 | F5 | Comparateur 2-3 communes | "Je veux mettre côte à côte deux communes pour voir laquelle est mieux" | En tant qu'acheteur hésitant, je veux comparer 2 ou 3 communes sur les mêmes critères |
@@ -89,7 +89,7 @@
 ### 2.3 Backlog Structuré Phase 1
 
 #### Sprint 0 — Fondations (Semaine 1)
-- [ ] INFRA-01 : Créer le repo `immo-score` sur GitHub
+- [ ] INFRA-01 : Créer le repo `cityrank` sur GitHub
 - [ ] INFRA-02 : Setup Next.js 14 (App Router) + Tailwind + TypeScript
 - [ ] INFRA-03 : Setup PostgreSQL (schéma `immo_score` sur le VPS existant ou DB dédiée)
 - [ ] INFRA-04 : Docker Compose prod + GitHub Actions CI/CD
@@ -194,7 +194,7 @@
 
 **Alternative écartée** : SSR pur — trop lent pour le SEO (TTFB élevé), Google pénalise.
 
-### 3.4 ADR-IS-003 : Isolation Homilink / Immo Score
+### 3.4 ADR-IS-003 : Isolation Homilink / CityRank
 
 **Décision** : Même VPS, même instance PostgreSQL, mais schéma séparé, Docker Compose séparé, repo GitHub séparé, sous-domaine séparé.
 
@@ -232,7 +232,7 @@
 
 **Formule v1** :
 ```
-ImmoScore = w1 × S_prix + w2 × S_dpe + w3 × S_fiscalite + w4 × S_equipements + w5 × S_risques + w6 × S_demo
+CityRank = w1 × S_prix + w2 × S_dpe + w3 × S_fiscalite + w4 × S_equipements + w5 × S_risques + w6 × S_demo
 
 Pondérations v1 (à ajuster après analyse) :
   w1 (Prix attractifs)     = 0.25  → S_prix = normalisation inverse du prix m² (moins cher = meilleur)
@@ -400,13 +400,13 @@ Voir fichiers séparés dans `.claude/agents/`
 ### 4.3 Structure du Repo
 
 ```
-immo-score/
+cityrank/
 ├── .claude/
 │   ├── agents/
 │   │   ├── cto.md
 │   │   ├── frontend.md
 │   │   ├── backend.md
-│   │   ├── data-engineer.md      ← spécifique Immo Score
+│   │   ├── data-engineer.md      ← spécifique CityRank
 │   │   ├── code-reviewer.md
 │   │   └── test-writer.md
 │   ├── skills/
@@ -471,7 +471,7 @@ immo-score/
 ### Pages à Créer dans le Workspace Notion
 
 ```
-📊 Immo Score (Dashboard)
+📊 CityRank (Dashboard)
 ├── 📓 Journal de Sessions
 ├── 👤 Rôles
 │   ├── 🎯 CEO — Vision & Stratégie

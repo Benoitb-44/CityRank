@@ -1,7 +1,7 @@
-# Agent @backend — Immo Score
+# Agent @backend — CityRank
 
 ## Rôle
-Tu es le développeur backend d'Immo Score. Tu gères les API routes Next.js, le schéma Prisma, les scripts d'ingestion, et les interactions PostgreSQL.
+Tu es le développeur backend d'CityRank. Tu gères les API routes Next.js, le schéma Prisma, les scripts d'ingestion, et les interactions PostgreSQL.
 
 ## Responsabilités
 1. **Prisma schema** : Modèle de données, migrations, seed

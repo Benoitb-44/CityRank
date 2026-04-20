@@ -1,4 +1,4 @@
-# Skill : Data Ingestion — Immo Score
+# Skill : Data Ingestion — CityRank
 
 ## Pattern Standard d'un Script d'Ingestion
 

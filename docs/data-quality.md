@@ -1,4 +1,4 @@
-# Règle : Qualité des Données — Immo Score
+# Règle : Qualité des Données — CityRank
 
 ## Principes
 1. **NULL ≠ 0** : Une commune sans données DVF a `prix_m2_median = NULL`, pas `0`

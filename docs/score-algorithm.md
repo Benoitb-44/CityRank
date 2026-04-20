@@ -1,7 +1,7 @@
-# Skill : Algorithme Score — Immo Score
+# Skill : Algorithme Score — CityRank
 
 ## Vue d'ensemble
-Le score Immo Score (0-100) est un indicateur composite d'attractivité immobilière d'une commune. Il agrège 6 dimensions normalisées par percentile rank.
+Le score CityRank (0-100) est un indicateur composite d'attractivité immobilière d'une commune. Il agrège 6 dimensions normalisées par percentile rank.
 
 ## Dimensions et Pondérations
 

@@ -1,4 +1,4 @@
-# Règle : Git Workflow — Immo Score
+# Règle : Git Workflow — CityRank
 
 ## Branches
 - `main` : Production. Déployé automatiquement via GitHub Actions.

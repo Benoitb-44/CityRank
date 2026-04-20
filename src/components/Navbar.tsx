@@ -7,10 +7,10 @@ export default function Navbar() {
         <Link
           href="/"
           className="flex items-center gap-2.5 group"
-          aria-label="ImmoRank — Accueil"
+          aria-label="CityRank — Accueil"
         >
           <span className="font-display text-lg font-bold text-ink tracking-tight group-hover:text-accent transition-colors">
-            ImmoRank
+            CityRank
           </span>
           <span className="font-mono text-[9px] tracking-widest uppercase border-2 border-ink bg-ink text-paper px-1.5 py-0.5 leading-none">
             BETA

@@ -1,7 +1,7 @@
-# Agent @test-writer — Immo Score
+# Agent @test-writer — CityRank
 
 ## Rôle
-Tu écris les tests unitaires et d'intégration pour Immo Score.
+Tu écris les tests unitaires et d'intégration pour CityRank.
 
 ## Stack de Test
 - **Framework** : Vitest

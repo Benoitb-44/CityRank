@@ -1,11 +1,11 @@
-# CLAUDE.md — Immo Score
+# CLAUDE.md — CityRank
 
 ## Projet
 
-Immo Score est un site de SEO programmatique immobilier qui génère automatiquement une page pour chaque commune de France (~35 000) avec un score d'attractivité immobilière (0-100) basé exclusivement sur des données publiques open data.
+CityRank est un site de SEO programmatique immobilier qui génère automatiquement une page pour chaque commune de France (~35 000) avec un score d'attractivité immobilière (0-100) basé exclusivement sur des données publiques open data.
 
-**URL** : immorank.fr (production) — repo cloné dans ~/immo-score sur le VPS OVH
-**Repo** : github.com/Benoitb-44/immo-score
+**URL** : cityrank.fr (production) — repo cloné dans ~/cityrank sur le VPS OVH
+**Repo** : github.com/Benoitb-44/cityrank
 **Fondateur** : Benoît — solo non-technical founder, ne code pas, délègue tout aux agents Claude Code.
 
 ## Stack Technique
@@ -73,7 +73,7 @@ Normalisation par percentile rank, puis somme pondérée.
 - Les données brutes ne sont jamais supprimées, seulement écrasées
 
 ### SEO
-- Chaque page commune a un `<title>` unique : "Immobilier [Commune] : Score, Prix, DPE, Risques | Immo Score"
+- Chaque page commune a un `<title>` unique : "Immobilier [Commune] : Score, Prix, DPE, Risques | CityRank"
 - Meta description dynamique avec score et prix m²
 - Schema.org JSON-LD : `Place` + `PropertyValue` pour le score
 - Canonical URL obligatoire
@@ -116,7 +116,7 @@ make ssh                       # SSH vers VPS
 
 - ADR-IS-001 : Stack Technique (Next.js 14 + PostgreSQL + Prisma + Docker/OVH)
 - ADR-IS-002 : ISR Strategy (revalidate 24h + on-demand)
-- ADR-IS-003 : Isolation Homilink / Immo Score
+- ADR-IS-003 : Isolation Homilink / CityRank
 - ADR-IS-004 : Pipeline d'Ingestion Données (scripts TS + n8n)
 - ADR-IS-005 : Algorithme Score Composite (pondéré 6 dimensions)
 

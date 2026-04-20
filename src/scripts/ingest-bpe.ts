@@ -121,7 +121,7 @@ function findZipEntry(
 async function downloadZip(url: string, label: string): Promise<Buffer> {
   console.log(`[ingest-bpe] Téléchargement ZIP BPE 2024 (${label})...`);
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'immo-score/1.0 (data.ingestion@immorank.fr)' },
+    headers: { 'User-Agent': 'cityrank/1.0 (data.ingestion@cityrank.fr)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} lors du téléchargement BPE`);
   const bytes = await res.arrayBuffer();

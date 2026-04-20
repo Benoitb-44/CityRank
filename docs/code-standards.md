@@ -1,4 +1,4 @@
-# Règle : Standards de Code — Immo Score
+# Règle : Standards de Code — CityRank
 
 ## TypeScript
 - `strict: true` dans tsconfig

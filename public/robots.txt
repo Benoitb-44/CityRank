@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://immorank.fr/sitemap.xml
+Sitemap: https://cityrank.fr/sitemap.xml
