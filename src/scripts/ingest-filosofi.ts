@@ -2,38 +2,105 @@
  * ingest-filosofi.ts
  * Ingestion des revenus médians par commune — INSEE Filosofi 2020.
  *
- * Source : https://www.insee.fr/fr/statistiques/6692392
- * Fichier : indic-struct-distrib-revenu-2020-COMMUNES.zip
+ * Source principale : https://www.insee.fr/fr/statistiques/6692392
  * Champ clé : CODGEO (code INSEE 5 car.), MED20 (revenu médian €/an par UC)
  *
- * Stratégie :
- * - Téléchargement du ZIP (~4 MB) en une seule requête
- * - Extraction du CSV via parsing Central Directory ZIP
- * - Filtre CODGEO = 5 caractères (communes uniquement, exclut EPCI/dept/région)
- * - MED20 = "s" (secret statistique) ou vide → NULL, pas 0
- * - Upsert idempotent par batches de 500 communes
+ * Stratégie de téléchargement (par ordre de priorité) :
+ *   0. Fichier local si LOCAL_FILOSOFI_PATH est défini (scp depuis VPS)
+ *   1. INSEE   : indic-struct-distrib-revenu-2020-COMMUNES.zip
+ *   2. data.gouv.fr : miroir du même ZIP
+ *   3. opendatasoft  : export CSV plat (format différent, fallback de dernier recours)
+ * Format détecté automatiquement par magic bytes (ZIP = PK\x03\x04, sinon CSV).
  *
  * Usage :
  *   npm run ingest:filosofi
- *   npm run ingest:filosofi -- --test       (limite à 10 000 lignes)
- *   npm run ingest:filosofi -- --dept=33    (département ciblé)
+ *   npm run ingest:filosofi -- --test          (limite à 10 000 lignes)
+ *   npm run ingest:filosofi -- --dept=33       (département ciblé)
+ *   LOCAL_FILOSOFI_PATH=/tmp/filosofi.zip npm run ingest:filosofi
  */
 
 import { PrismaClient } from '@prisma/client';
 import { createInflateRaw } from 'zlib';
 import { createInterface } from 'readline';
 import { Readable } from 'stream';
+import { readFileSync, existsSync } from 'fs';
 
 const prisma = new PrismaClient();
 
-const FILOSOFI_URL =
-  'https://www.insee.fr/fr/statistiques/fichier/6692392/indic-struct-distrib-revenu-2020-COMMUNES.zip';
+// Sources par ordre de priorité (ZIP ou CSV détecté automatiquement)
+const DOWNLOAD_SOURCES = [
+  {
+    label: 'INSEE (source officielle)',
+    url: 'https://www.insee.fr/fr/statistiques/fichier/6692392/indic-struct-distrib-revenu-2020-COMMUNES.zip',
+  },
+  {
+    label: 'data.gouv.fr (miroir)',
+    url: 'https://www.data.gouv.fr/fr/datasets/r/f1b71d9b-3dae-4823-b8ab-4a359c448b31',
+  },
+  {
+    label: 'opendatasoft Île-de-France (CSV plat)',
+    url: 'https://data.opendatasoft.com/api/explore/v2.1/catalog/datasets/filosofi-2020-communes@datailedefrance/exports/csv',
+  },
+];
+
+// Fichier local : scp /tmp/filosofi.zip ubuntu@vps:/tmp/ puis LOCAL_FILOSOFI_PATH=/tmp/filosofi.zip
+const LOCAL_PATH = process.env['LOCAL_FILOSOFI_PATH'] ?? null;
 
 const BATCH_SIZE   = 500;
 const TEST_MODE    = process.argv.includes('--test');
 const TEST_LIMIT   = 10_000;
 const DEPT_ARG     = process.argv.find(a => a.startsWith('--dept='));
 const FILTER_DEPT  = DEPT_ARG ? DEPT_ARG.replace('--dept=', '').trim() : null;
+
+// ─── Acquisition des données (local → INSEE → data.gouv.fr → opendatasoft) ───
+
+/** ZIP magic bytes : PK\x03\x04 */
+function isZipBuffer(buf: Buffer): boolean {
+  return buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
+}
+
+interface FetchResult {
+  buf:    Buffer;
+  isZip:  boolean;
+  source: string;
+}
+
+async function fetchWithFallback(): Promise<FetchResult> {
+  // 0. Fichier local (scp fallback manuel)
+  if (LOCAL_PATH) {
+    if (!existsSync(LOCAL_PATH)) {
+      throw new Error(`LOCAL_FILOSOFI_PATH="${LOCAL_PATH}" introuvable sur le disque.`);
+    }
+    const buf = readFileSync(LOCAL_PATH);
+    console.log(`  → Source : fichier local ${LOCAL_PATH} (${(buf.length / 1024 / 1024).toFixed(1)} MB)`);
+    return { buf, isZip: isZipBuffer(buf), source: `local:${LOCAL_PATH}` };
+  }
+
+  // 1-3. Sources réseau avec fallback automatique
+  const errors: string[] = [];
+  for (const { label, url } of DOWNLOAD_SOURCES) {
+    try {
+      process.stdout.write(`  → Tentative ${label}... `);
+      const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length < 1024) throw new Error(`Réponse trop courte (${buf.length} octets) — probablement une page d'erreur HTML`);
+      console.log(`OK (${(buf.length / 1024 / 1024).toFixed(1)} MB)`);
+      return { buf, isZip: isZipBuffer(buf), source: url };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`ÉCHEC — ${msg}`);
+      errors.push(`${label}: ${msg}`);
+    }
+  }
+
+  throw new Error(
+    `Toutes les sources ont échoué. Pour contourner, déposer le ZIP manuellement :\n` +
+    `  scp filosofi.zip ubuntu@37.59.122.208:/tmp/filosofi.zip\n` +
+    `  docker exec -e LOCAL_FILOSOFI_PATH=/tmp/filosofi.zip -it cityrank npm run ingest:filosofi\n\n` +
+    `Détail des erreurs :\n${errors.map(e => `  - ${e}`).join('\n')}`,
+  );
+}
 
 // ─── Parsing ZIP (Central Directory) ─────────────────────────────────────────
 
@@ -208,17 +275,19 @@ async function main(): Promise<void> {
   console.log('=== INSEE Filosofi 2020 — ingestion ===');
   console.log(`Mode : ${TEST_MODE ? 'TEST' : 'PRODUCTION'}${FILTER_DEPT ? ` | Département ${FILTER_DEPT}` : ''}`);
 
-  // 1. Téléchargement du ZIP
-  console.log(`\n[1/4] Téléchargement : ${FILOSOFI_URL}`);
-  const res = await fetch(FILOSOFI_URL);
-  if (!res.ok) throw new Error(`HTTP ${res.status} : ${res.statusText}`);
-  const arrayBuffer = await res.arrayBuffer();
-  const buf = Buffer.from(arrayBuffer);
-  console.log(`  → Taille ZIP : ${(buf.length / 1024 / 1024).toFixed(1)} MB`);
+  // 1. Acquisition des données (local → INSEE → data.gouv.fr → opendatasoft)
+  console.log(LOCAL_PATH
+    ? `\n[1/4] Chargement depuis fichier local : ${LOCAL_PATH}`
+    : '\n[1/4] Téléchargement (avec fallback automatique)...',
+  );
+  const { buf, isZip, source } = await fetchWithFallback();
+  console.log(`  → Source utilisée : ${source}`);
 
-  // 2. Extraction CSV
-  console.log('\n[2/4] Extraction CSV depuis ZIP...');
-  const csvStream = await extractCsvFromZip(buf);
+  // 2. Extraction CSV (ZIP → décompresse ; CSV direct → passe tel quel)
+  console.log(`\n[2/4] ${isZip ? 'Extraction CSV depuis ZIP...' : 'Fichier CSV direct détecté, pas de décompression.'}`);
+  const csvStream = isZip
+    ? await extractCsvFromZip(buf)
+    : Readable.from(buf);
 
   // 3. Parsing
   console.log('\n[3/4] Parsing CSV...');
