@@ -32,6 +32,26 @@ services:
     networks:
       - immo-network
 
+  # INFRA-08 : Serveur MCP PostgreSQL lecture seule pour agents Claude Code
+  # Accès : https://mcp-db.cityrank.fr (nginx proxy → 127.0.0.1:3002)
+  # User : cityrank_ro — SELECT uniquement sur immo_score, AUCUN droit sur public
+  mcp-db:
+    image: node:22-alpine
+    container_name: cityrank-mcp-db
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL_RO=${DATABASE_URL_RO}
+    volumes:
+      - ./scripts/mcp-db-start.sh:/start.sh:ro
+    entrypoint: ["sh", "/start.sh"]
+    ports:
+      - "127.0.0.1:3002:3002"
+    networks:
+      - immo-network
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
 

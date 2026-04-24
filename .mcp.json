@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cityrank-db": {
+      "type": "sse",
+      "url": "https://mcp-db.cityrank.fr/sse",
+      "note": "Accès lecture seule (cityrank_ro) sur immo_score. Credentials basic auth à configurer dans ~/.claude/mcp.json (ne pas committer). Voir ADR-006 et INFRA-08."
+    }
+  }
+}
