@@ -21,8 +21,6 @@ services:
     build: .
     container_name: cityrank
     restart: unless-stopped
-    ports:
-      - "3001:3000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=production
@@ -44,13 +42,28 @@ services:
     volumes:
       - ./scripts/mcp-db-start.sh:/start.sh:ro
     entrypoint: ["sh", "/start.sh"]
-    ports:
-      - "127.0.0.1:3002:3002"
     networks:
       - immo-network
     depends_on:
       db:
         condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cityrank-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/nginx/.htpasswd-mcp-db:/etc/nginx/.htpasswd-mcp-db:ro
+    depends_on:
+      - cityrank
+      - mcp-db
+    networks:
+      - immo-network
 
 volumes:
   postgres_data:
