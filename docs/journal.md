@@ -6,6 +6,25 @@
 
 ---
 
+## Session 2026-04-27 — Restauration MCP cityrank-db (INFRA-08 / ADR-006)
+
+**Agent(s)** : `@backend`  
+**Branche** : `claude/sprint-a-consolidation`
+
+**Modifications** :
+- `.gitignore` : ajout de `.mcp.json` (contient des credentials Basic Auth)
+- `.mcp.json.example` : template versionné sans credentials
+- `.mcp.json` : fichier local avec placeholder à remplir depuis 1Password
+- `docs/adr/ADR-006-mcp-readonly-db.md` : création du fichier ADR (référencé dans CLAUDE.md mais absent du repo)
+- `README.md` : ajout section "Setup MCP" avec instructions complètes
+- `docs/adr/` : création du répertoire
+
+**Contexte** : L'audit Orchestrateur du 27/04 a dû passer par SSH+psql en fallback car `.mcp.json` était absent du repo. Ce fichier avait été livré le 24/04 (INFRA-08) mais non commité/non restauré après. Endpoint : `https://mcp-db.cityrank.fr/sse`.
+
+**Vérification attendue** : `/mcp` liste `cityrank-db` ✓ · `SELECT COUNT(*) FROM immo_score.communes` → 34875 ✓
+
+---
+
 ## Session 2026-04-27 — Sprint A : Consolidation documentaire
 
 **Agent(s)** : exécution directe (refactor structurel)
