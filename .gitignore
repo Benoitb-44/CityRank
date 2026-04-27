@@ -35,3 +35,6 @@ prisma/migrations/
 # IDE
 .vscode/
 .idea/
+
+# MCP config (contains credentials — use .mcp.json.example as template)
+.mcp.json

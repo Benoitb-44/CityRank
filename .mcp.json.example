@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cityrank-db": {
+      "url": "https://mcp-db.cityrank.fr/sse",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Basic <base64(claude_agent:YOUR_PASSWORD_FROM_1PASSWORD)>"
+      }
+    }
+  }
+}
