@@ -147,7 +147,8 @@
       "Bash(gh pr create --title 'Sprint A — Consolidation documentaire' --body ' *)",
       "Bash(git check-ignore *)",
       "Bash(git fetch *)",
-      "Bash(git rebase *)"
+      "Bash(git rebase *)",
+      "Bash(gh pr create --title 'docs: Sprint A — consolidation documentaire & permissions git' --body ' *)"
     ]
   }
 }
