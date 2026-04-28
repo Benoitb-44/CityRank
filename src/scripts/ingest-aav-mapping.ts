@@ -126,7 +126,7 @@ async function extractFileFromZip(buf: Buffer): Promise<ExtractedFile> {
 
 interface SheetRow { [key: string]: string | number | null }
 
-async function parseXlsx(buf: Buffer): Promise<SheetRow[]> {
+async function parseXlsx(buf: Buffer, requiredColumn?: string): Promise<SheetRow[]> {
   if (buf[0] !== 0x50 || buf[1] !== 0x4b) {
     throw new Error('Le fichier XLSX ne semble pas être un ZIP valide.');
   }
@@ -134,19 +134,53 @@ async function parseXlsx(buf: Buffer): Promise<SheetRow[]> {
 
   const sharedStrings = parseSharedStrings(files['xl/sharedStrings.xml'] ?? '');
   const workbookXml   = files['xl/workbook.xml'] ?? '';
-  const sheetMatch    = workbookXml.match(/<sheet[^>]+r:id="(rId\d+)"[^>]*\/>/);
-  const rId           = sheetMatch?.[1] ?? 'rId1';
   const relsXml       = files['xl/_rels/workbook.xml.rels'] ?? '';
-  const relMatch      = new RegExp(`Id="${rId}"[^>]+Target="([^"]+)"`).exec(relsXml);
-  const sheetPath     = 'xl/' + (relMatch?.[1]?.replace(/^\/xl\//, '') ?? 'worksheets/sheet1.xml');
-  const sheetXml      = files[sheetPath] ?? files['xl/worksheets/sheet1.xml'] ?? '';
 
-  if (!sheetXml) throw new Error(`Feuille introuvable dans le XLSX (cherché : ${sheetPath})`);
+  // Construire la map rId → chemin de feuille
+  const relsMap: Record<string, string> = {};
+  const relsPattern = /Id="(rId\d+)"[^>]+Target="([^"]+)"/g;
+  let relM: RegExpExecArray | null;
+  while ((relM = relsPattern.exec(relsXml)) !== null) {
+    relsMap[relM[1]] = relM[2];
+  }
 
-  const sheetNames = Object.keys(files).filter(k => k.startsWith('xl/worksheets/'));
-  console.log(`  → Feuilles XLSX disponibles : ${sheetNames.join(', ')}`);
+  // Lister toutes les feuilles du workbook dans l'ordre
+  const sheets: Array<{ rId: string; name: string }> = [];
+  const sheetPattern = /<sheet\s[^>]*name="([^"]*)"[^>]*r:id="(rId\d+)"/g;
+  let sM: RegExpExecArray | null;
+  while ((sM = sheetPattern.exec(workbookXml)) !== null) {
+    sheets.push({ name: sM[1], rId: sM[2] });
+  }
+  if (sheets.length === 0) sheets.push({ rId: 'rId1', name: 'sheet1' });
 
-  return parseSheetXml(sheetXml, sharedStrings);
+  console.log(`  → Feuilles XLSX : ${sheets.map(s => `"${s.name}"`).join(', ')}`);
+
+  // Chercher la première feuille contenant la colonne requise (ou la première non-vide)
+  for (const { rId, name } of sheets) {
+    const target   = relsMap[rId] ?? '';
+    const path     = 'xl/' + target.replace(/^\/xl\//, '');
+    const sheetXml = files[path] ?? files['xl/worksheets/sheet1.xml'] ?? '';
+    if (!sheetXml) continue;
+
+    const rows = parseSheetXml(sheetXml, sharedStrings);
+    if (rows.length === 0) continue;
+
+    if (requiredColumn) {
+      if (!Object.keys(rows[0]).includes(requiredColumn)) {
+        console.log(`  → Feuille "${name}" ignorée (colonne ${requiredColumn} absente)`);
+        continue;
+      }
+    }
+
+    console.log(`  → Feuille sélectionnée : "${name}" (${rows.length} lignes)`);
+    return rows;
+  }
+
+  throw new Error(
+    requiredColumn
+      ? `Aucune feuille ne contient la colonne '${requiredColumn}' dans le XLSX`
+      : 'Aucune feuille non-vide trouvée dans le XLSX',
+  );
 }
 
 async function extractXlsxZipFiles(buf: Buffer): Promise<Record<string, string>> {
@@ -372,14 +406,14 @@ async function main(): Promise<void> {
     const extracted = await extractFileFromZip(file.buf);
     if (extracted.format === 'xlsx') {
       console.log('  → XLSX dans le ZIP — parsing XML...');
-      const rawRows = await parseXlsx(extracted.buffer);
+      const rawRows = await parseXlsx(extracted.buffer, 'CODGEO');
       rows = transformXlsxRows(rawRows);
     } else {
       rows = await parseCsv(extracted.stream);
     }
   } else if (file.kind === 'xlsx') {
     console.log('  → Fichier XLSX direct — parsing XML...');
-    const rawRows = await parseXlsx(file.buf);
+    const rawRows = await parseXlsx(file.buf, 'CODGEO');
     rows = transformXlsxRows(rawRows);
   } else {
     rows = await parseCsv(Readable.from(file.buf));
