@@ -30,6 +30,13 @@ enum NiveauRisque {
   TRES_FORT
 }
 
+enum Profile {
+  ACHETEUR
+  INVESTISSEUR
+  FAMILLE
+  RETRAITE
+}
+
 // ─────────────────────────────────────────────
 // Table 1 : communes
 // Référentiel COG INSEE (~35 000 communes)
@@ -40,24 +47,31 @@ model Commune {
   nom         String
   departement String
   region      String
-  population  Int?
-  superficie  Float?
-  slug        String  @unique
-  lat         Float?
-  lng         Float?
+  population       Int?
+  superficie       Float?
+  slug             String  @unique
+  lat              Float?
+  lng              Float?
+
+  // v4 — Accessibilité financière
+  aav_code         String?  // Code AAV 2020 (Aires d'Attraction des Villes, INSEE)
+  prix_tx_median3y Float?   // Prix médian transaction sur 3 ans glissants (€) — calculé depuis DVF
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   // Relations
-  dvf_prix    DvfPrix[]
-  dpe         DpeCommune[]
-  equipements Equipement[]
-  bpe         BpeCommune?
-  risques     Risque[]
-  fiscalite   Fiscalite[]
-  demographie Demographie[]
-  score       Score?
+  dvf_prix        DvfPrix[]
+  dpe             DpeCommune[]
+  equipements     Equipement[]
+  bpe             BpeCommune?
+  risques         Risque[]
+  fiscalite       Fiscalite[]
+  demographie     Demographie[]
+  score           Score?
+  filosofi_v2     FilosofiCommune?
+  score_commune   ScoreCommune?
+  score_profiles  ScoreProfile[]
 
   @@map("communes")
 }
@@ -268,6 +282,92 @@ model InseeFilosofi {
   created_at    DateTime @default(now())
 
   @@map("insee_filosofi")
+}
+
+// ─────────────────────────────────────────────
+// Table 10 : filosofi_communes (v4)
+// Revenus médians par UC + indicateurs complémentaires — Filosofi 2021
+// Remplace insee_filosofi pour les calculs v4 (commune_id FK, champs étendus)
+// ─────────────────────────────────────────────
+
+model FilosofiCommune {
+  id            String   @id @default(cuid())
+  commune_id    String   @unique
+
+  median_uc     Float    // MED_SL : revenu médian disponible par UC (€/an)
+  taux_pauvrete Float?   // TP60_SL : taux de pauvreté au seuil 60% (%)
+  population    Int?     // NBPERS : nb personnes dans les ménages fiscaux
+  annee         Int      @default(2021)
+
+  updated_at    DateTime @updatedAt
+
+  commune Commune @relation(fields: [commune_id], references: [code_insee], onDelete: Cascade)
+
+  @@map("filosofi_communes")
+}
+
+// ─────────────────────────────────────────────
+// Table 11 : cerema_accessibilite
+// Accessibilité financière au niveau AAV (Cerema DV3F)
+// Fallback quand DVF+Filosofi commune indisponibles
+// ─────────────────────────────────────────────
+
+model CeremaAccessibilite {
+  id             String   @id @default(cuid())
+  aav_code       String   @unique  // Code AAV 2020 INSEE
+  lib_aav        String?           // Libellé de l'AAV
+  mm_aav         Float             // Median Multiple moyen de l'AAV
+  prix_m2_median Float?            // Prix m² médian transactions de l'AAV
+  annee          Int      @default(2022)
+
+  updated_at     DateTime @updatedAt
+
+  @@index([aav_code])
+  @@map("cerema_accessibilite")
+}
+
+// ─────────────────────────────────────────────
+// Table 12 : score_communes (v4)
+// Scores d'accessibilité financière par commune (Sprint 4-A)
+// Architecture v4 : table dédiée par dimension, FK sur code_insee
+// ─────────────────────────────────────────────
+
+model ScoreCommune {
+  id                      String   @id @default(cuid())
+  commune_id              String   @unique
+  version                 Int      @default(4)
+
+  score_accessibilite_fin Float?   // Score accessibilité financière (0-100, floor 10)
+  median_multiple         Float?   // Median Multiple calculé ou imputé
+  accessibilite_imputed   Boolean  @default(false)
+  imputation_methods      Json?    // { method, source, aav_code? }
+
+  computed_at             DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  commune Commune @relation(fields: [commune_id], references: [code_insee], onDelete: Cascade)
+
+  @@index([score_accessibilite_fin])
+  @@map("score_communes")
+}
+
+// ─────────────────────────────────────────────
+// Table 13 : score_profiles (v4)
+// Scores globaux par profil acheteur (ACHETEUR, INVESTISSEUR, FAMILLE, RETRAITE)
+// ─────────────────────────────────────────────
+
+model ScoreProfile {
+  id           String   @id @default(cuid())
+  commune_id   String
+  profile      Profile
+  score_global Float
+  updated_at   DateTime @updatedAt
+
+  commune Commune @relation(fields: [commune_id], references: [code_insee], onDelete: Cascade)
+
+  @@unique([commune_id, profile])
+  @@index([commune_id])
+  @@map("score_profiles")
 }
 
 // ─────────────────────────────────────────────

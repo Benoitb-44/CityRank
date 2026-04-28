@@ -19,7 +19,11 @@
     "ingest:fiscalite": "tsx src/scripts/ingest-fiscalite.ts",
     "ingest:demo": "tsx src/scripts/ingest-demo.ts",
     "ingest:filosofi": "tsx src/scripts/ingest-filosofi.ts",
+    "ingest:cerema": "tsx src/scripts/ingest-cerema-accessibilite.ts",
+    "ingest:aav": "tsx src/scripts/ingest-aav-mapping.ts",
+    "aggregate:dvf-prix-tx": "tsx src/scripts/aggregate-dvf-prix-tx.ts",
     "compute:scores": "tsx src/scripts/compute-scores.ts",
+    "compute:accessibilite": "tsx src/scripts/compute-accessibilite.ts",
     "test:scoring": "tsx src/scripts/test-scoring.ts",
     "test:scoring-v2": "tsx src/scripts/test-scoring-v2.ts",
     "test:accessibilite": "tsx src/scripts/test-accessibilite.ts"
