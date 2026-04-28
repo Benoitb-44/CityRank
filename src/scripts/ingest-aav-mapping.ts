@@ -162,7 +162,7 @@ async function parseXlsx(buf: Buffer, requiredColumn?: string): Promise<SheetRow
     const sheetXml = files[path] ?? files['xl/worksheets/sheet1.xml'] ?? '';
     if (!sheetXml) continue;
 
-    const rows = parseSheetXml(sheetXml, sharedStrings);
+    const rows = parseSheetXml(sheetXml, sharedStrings, requiredColumn ? [requiredColumn] : undefined);
     if (rows.length === 0) continue;
 
     if (requiredColumn) {
@@ -236,47 +236,60 @@ function parseSharedStrings(xml: string): string[] {
   return strings;
 }
 
-function parseSheetXml(xml: string, sharedStrings: string[]): SheetRow[] {
+function parseCells(
+  rowXml: string,
+  sharedStrings: string[],
+): Array<{ col: number; value: string | number | null }> {
+  const cells: Array<{ col: number; value: string | number | null }> = [];
+  const cellPattern = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+  let cMatch: RegExpExecArray | null;
+  while ((cMatch = cellPattern.exec(rowXml)) !== null) {
+    const attrs      = cMatch[1];
+    const inner      = cMatch[2];
+    const rAttr      = attrs.match(/\br="([A-Z]+\d+)"/)?.[1];
+    if (!rAttr) continue;
+    const colLetters = rAttr.replace(/\d+$/, '');
+    const cellType   = attrs.match(/\bt="([^"]*)"/)?.[1] ?? '';
+    const colNum     = colLettersToNum(colLetters);
+    const vMatch     = inner.match(/<v>([^<]*)<\/v>/);
+    const rawVal     = vMatch?.[1] ?? null;
+    let value: string | number | null = null;
+    if (rawVal !== null) {
+      if (cellType === 's')        value = sharedStrings[parseInt(rawVal)] ?? '';
+      else if (cellType === 'str') value = rawVal;
+      else { const n = parseFloat(rawVal); value = isNaN(n) ? rawVal : n; }
+    }
+    cells.push({ col: colNum, value });
+  }
+  return cells;
+}
+
+// headerHints : si fourni, ignore les lignes jusqu'à trouver celle qui contient
+// une des colonnes attendues (utile quand la 1ère ligne est un titre INSEE).
+function parseSheetXml(xml: string, sharedStrings: string[], headerHints?: string[]): SheetRow[] {
   const rows: SheetRow[] = [];
   let headers: string[] = [];
   const rowPattern = /<row[^>]*>([\s\S]*?)<\/row>/g;
   let rowMatch: RegExpExecArray | null;
+
   while ((rowMatch = rowPattern.exec(xml)) !== null) {
-    const rowXml = rowMatch[1];
-    const cells: Array<{ col: number; value: string | number | null }> = [];
-    // Extraire les attributs du tag <c> en une seule capture, puis les parser
-    // indépendamment — évite le piège du [^>]* greedy qui consomme t="s"
-    const cellPattern = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
-    let cMatch: RegExpExecArray | null;
-    while ((cMatch = cellPattern.exec(rowXml)) !== null) {
-      const attrs    = cMatch[1];
-      const inner    = cMatch[2];
-      const rAttr    = attrs.match(/\br="([A-Z]+\d+)"/)?.[1];
-      if (!rAttr) continue;
-      const colLetters = rAttr.replace(/\d+$/, '');
-      const cellType   = attrs.match(/\bt="([^"]*)"/)?.[1] ?? '';
-      const colNum     = colLettersToNum(colLetters);
-      const vMatch     = inner.match(/<v>([^<]*)<\/v>/);
-      const rawVal     = vMatch?.[1] ?? null;
-      let value: string | number | null = null;
-      if (rawVal !== null) {
-        if (cellType === 's')        value = sharedStrings[parseInt(rawVal)] ?? '';
-        else if (cellType === 'str') value = rawVal;
-        else { const n = parseFloat(rawVal); value = isNaN(n) ? rawVal : n; }
-      }
-      cells.push({ col: colNum, value });
-    }
+    const cells = parseCells(rowMatch[1], sharedStrings);
     if (cells.length === 0) continue;
+
     if (headers.length === 0) {
+      const cellValues = cells.map(c => String(c.value ?? '').trim().toUpperCase());
+      // Si hints fournis : sauter les lignes de titre jusqu'à trouver les colonnes
+      if (headerHints && !headerHints.some(h => cellValues.includes(h))) continue;
+      // Cette ligne est la ligne d'en-têtes
       const maxCol = Math.max(...cells.map(c => c.col));
       headers = new Array(maxCol + 1).fill('');
-      // Uppercase pour matcher CODGEO / AAV2020
       for (const c of cells) headers[c.col] = String(c.value ?? '').trim().toUpperCase();
-    } else {
-      const row: SheetRow = {};
-      for (const c of cells) { if (headers[c.col]) row[headers[c.col]] = c.value; }
-      if (Object.keys(row).length > 0) rows.push(row);
+      continue;
     }
+
+    const row: SheetRow = {};
+    for (const c of cells) { if (headers[c.col]) row[headers[c.col]] = c.value; }
+    if (Object.keys(row).length > 0) rows.push(row);
   }
   return rows;
 }
