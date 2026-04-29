@@ -107,27 +107,47 @@ async function parseXlsx(buf: Buffer): Promise<SheetRow[]> {
 
   console.log(`  → Feuilles XLSX : ${sheets.map(s => `"${s.name}"`).join(', ')}`);
 
+  // Noms de colonnes connus pour les fichiers Cerema (en majuscule pour la comparaison)
+  // Le fichier 2022-2024 utilise 'codgeo', les versions antérieures 'insee_com'
+  const CEREMA_HINTS = ['CODGEO', 'INSEE_COM', 'CODE_INSEE', 'CODE_COM', 'COMMUNE'];
+
   for (const { rId, name } of sheets) {
     const target   = relsMap[rId] ?? '';
     const path     = 'xl/' + target.replace(/^\/xl\//, '');
     const sheetXml = files[path] ?? files['xl/worksheets/sheet1.xml'] ?? '';
     if (!sheetXml) continue;
 
-    // INSEE_COM en majuscule pour la détection (headers stockés en minuscule)
-    const rows = parseSheetXml(sheetXml, sharedStrings, ['INSEE_COM', 'INSEE_C']);
-    if (rows.length === 0) continue;
+    // 1er essai : avec hints pour sauter les lignes de titre
+    let rows = parseSheetXml(sheetXml, sharedStrings, CEREMA_HINTS);
 
-    if (!Object.keys(rows[0]).includes('insee_com')) {
-      const sample = Object.keys(rows[0]).slice(0, 5).join(', ');
-      console.log(`  → Feuille "${name}" ignorée (colonnes: ${sample}…)`);
+    if (rows.length === 0) {
+      // Hint non trouvé — parse sans hint pour voir les colonnes réelles
+      const rowsRaw = parseSheetXml(sheetXml, sharedStrings);
+      const sample  = Object.keys(rowsRaw[0] ?? {}).slice(0, 10).join(', ');
+      console.log(`  → Feuille "${name}" : hint absent. Colonnes brutes (1ère ligne) : ${sample || '(vide)'}`);
+      // Réessayer sans hint — si 1ère ligne = headers réels
+      if (rowsRaw.length > 0) rows = rowsRaw;
+      else continue;
+    }
+
+    const keys = Object.keys(rows[0] ?? {});
+    // Chercher la clé qui ressemble à un code INSEE (insensible à la casse)
+    const inseeKey = keys.find(k => ['insee_com', 'code_insee', 'codgeo', 'code_com', 'commune'].includes(k));
+    if (!inseeKey) {
+      console.log(`  → Feuille "${name}" ignorée (colonnes: ${keys.slice(0, 8).join(', ')}…)`);
       continue;
     }
 
-    console.log(`  → Feuille sélectionnée : "${name}" (${rows.length} lignes)`);
+    if (inseeKey !== 'insee_com') {
+      console.log(`  → Colonne INSEE trouvée sous le nom "${inseeKey}" — renommage vers "insee_com"`);
+      rows = rows.map(r => { const n = { ...r }; n['insee_com'] = n[inseeKey]; delete n[inseeKey]; return n; });
+    }
+
+    console.log(`  → Feuille sélectionnée : "${name}" (${rows.length} lignes, clé: "${inseeKey}")`);
     return rows;
   }
 
-  throw new Error('Aucune feuille ne contient la colonne "insee_com" dans le XLSX');
+  throw new Error('Aucune feuille ne contient de colonne commune INSEE dans le XLSX');
 }
 
 async function extractZipFiles(buf: Buffer): Promise<Record<string, string>> {
@@ -206,12 +226,14 @@ function parseSheetXml(xml: string, sharedStrings: string[], headerHints?: strin
       const colLetters = rAttr.replace(/\d+$/, '');
       const cellType   = attrs.match(/\bt="([^"]*)"/)?.[1] ?? '';
       const colNum     = colLettersToNum(colLetters);
-      const vMatch     = inner.match(/<v>([^<]*)<\/v>/);
-      const rawVal     = vMatch?.[1] ?? null;
+      // Cerema utilise t="inlineStr" avec <is><t>...</t></is> au lieu de <v>
+      const vMatch   = inner.match(/<v>([^<]*)<\/v>/);
+      const isMatch  = inner.match(/<is>[\s\S]*?<t[^>]*>([^<]*)<\/t>/);
+      const rawVal   = vMatch?.[1] ?? (cellType === 'inlineStr' ? (isMatch?.[1] ?? null) : null);
       let value: string | number | null = null;
       if (rawVal !== null) {
-        if (cellType === 's')        value = sharedStrings[parseInt(rawVal)] ?? '';
-        else if (cellType === 'str') value = rawVal;
+        if (cellType === 's')                              value = sharedStrings[parseInt(rawVal)] ?? '';
+        else if (cellType === 'str' || cellType === 'inlineStr') value = rawVal;
         else { const n = parseFloat(rawVal); value = isNaN(n) ? rawVal : n; }
       }
       cells.push({ col: colNum, value });
@@ -285,18 +307,21 @@ function transformRows(rawRows: SheetRow[]): {
 
     if (isExcluded(insee)) { nbExclus++; continue; }
 
-    const aavRaw = toString(row['aav']);
+    // Cerema 2022-2024 : 'aav2020' (anciens fichiers : 'aav')
+    const aavRaw = toString(row['aav2020'] ?? row['aav']);
     if (!aavRaw) nbHorsAav++;
 
     rows.push({
       commune_id: insee,
       aav_code:   aavRaw,
-      d3_appart:  toNum(row['d3_appartement']),
-      d5_appart:  toNum(row['d5_appartement']),
-      d7_appart:  toNum(row['d7_appartement']),
-      d3_maison:  toNum(row['d3_maison']),
-      d5_maison:  toNum(row['d5_maison']),
-      d7_maison:  toNum(row['d7_maison']),
+      // cod111 = maisons individuelles, cod121 = appartements collectifs (DV3F Cerema)
+      // Anciens fichiers : 'd3_maison'/'d3_appartement' — fichier 2022-2024 : 'd3_cod111'/'d3_cod121'
+      d3_appart:  toNum(row['d3_cod121'] ?? row['d3_appartement']),
+      d5_appart:  toNum(row['d5_cod121'] ?? row['d5_appartement']),
+      d7_appart:  toNum(row['d7_cod121'] ?? row['d7_appartement']),
+      d3_maison:  toNum(row['d3_cod111'] ?? row['d3_maison']),
+      d5_maison:  toNum(row['d5_cod111'] ?? row['d5_maison']),
+      d7_maison:  toNum(row['d7_cod111'] ?? row['d7_maison']),
     });
   }
 

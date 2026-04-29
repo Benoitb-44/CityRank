@@ -270,7 +270,10 @@
       "Bash(git -C /workspaces/immo-score log --oneline)",
       "Bash(git -C /workspaces/immo-score branch -a)",
       "Bash(git -C /workspaces/immo-score log --all --grep=\"4.1\\\\|4-1\\\\|Sprint 4\" --oneline)",
-      "Bash(git -C /workspaces/immo-score show --stat dd56f8a)"
+      "Bash(git -C /workspaces/immo-score show --stat dd56f8a)",
+      "Bash(unzip -l data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx)",
+      "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/workbook.xml)",
+      "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/worksheets/sheet1.xml)"
     ]
   }
 }
