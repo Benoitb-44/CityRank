@@ -273,7 +273,8 @@
       "Bash(git -C /workspaces/immo-score show --stat dd56f8a)",
       "Bash(unzip -l data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx)",
       "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/workbook.xml)",
-      "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/worksheets/sheet1.xml)"
+      "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/worksheets/sheet1.xml)",
+      "Bash(make help *)"
     ]
   }
 }
