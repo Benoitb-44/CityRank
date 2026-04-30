@@ -6,10 +6,11 @@
  * generateMetadata     : titre + description dynamiques pour le SEO.
  */
 
-import { PrismaClient, NiveauRisque, type BpeCommune } from '@prisma/client';
+import { PrismaClient, NiveauRisque, type BpeCommune, type Prisma } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { BPE_CODES } from '@/lib/bpe-codes';
+import SousScoreV4, { type NiveauFallback } from '@/components/SousScoreV4';
 
 export const revalidate = 86400; // ISR 24h
 
@@ -140,7 +141,7 @@ export default async function CommunePage({
 }) {
   const commune = await prisma.commune.findUnique({
     where: { slug: params.slug },
-    include: { score: true, bpe: true },
+    include: { score: true, bpe: true, score_commune: true },
   });
 
   if (!commune) notFound();
@@ -205,6 +206,24 @@ export default async function CommunePage({
 
   const score = commune.score;
   const globalScore = score?.score_global ?? null;
+
+  // ── Score v4 — Accessibilité financière ──────────────────────────────────────
+  const scoreCommune = commune.score_commune;
+  const scoreAccessFin = scoreCommune?.score_accessibilite_fin ?? null;
+
+  function deriveNiveauFallback(sc: typeof scoreCommune): NiveauFallback | null {
+    if (!sc) return null;
+    const methods = sc.imputation_methods as Prisma.JsonObject | null;
+    const method = typeof methods?.method === 'string' ? methods.method : null;
+    if (method === 'cerema_aav_d5_2022_2024') return 'N1';
+    if (method === 'dvf_filosofi') return 'N2';
+    if (method === 'regional_median') return 'N3';
+    if (method === 'national_median') return 'N4';
+    // Si pas d'imputation enregistrée et non imputé → N1
+    return sc.accessibilite_imputed ? 'N3' : 'N1';
+  }
+
+  const niveauAccessFin = deriveNiveauFallback(scoreCommune);
   const globalRounded = globalScore != null ? Math.round(globalScore) : null;
   const color =
     globalRounded != null ? scoreColor(globalRounded) : { bg: 'bg-ink-muted', text: 'text-white' };
@@ -352,6 +371,26 @@ export default async function CommunePage({
             <span className="inline-block w-3 h-3 bg-score-low border border-ink" />
             0–39 — Faible
           </span>
+        </div>
+
+        {/* ── Score CityRank v4 — Accessibilité financière ── */}
+        <div className="mt-12">
+          <SectionTitle index="02" title="Score CityRank v4 — Accessibilité financière" />
+
+          <SousScoreV4
+            titre="Accessibilité financière"
+            valeur={scoreAccessFin}
+            niveau={niveauAccessFin}
+            source="Cerema DV3F 2022-2024 · DVF + Filosofi"
+            lienMethodo="/methodologie#v4-accessibilite"
+          />
+
+          <p className="font-mono text-[10px] text-ink-muted mt-3 leading-relaxed">
+            Score v4 en déploiement progressif — coexiste avec le score v3.1 ci-dessus pendant la transition.{' '}
+            <a href="/methodologie#v4-accessibilite" className="underline hover:text-ink">
+              Voir la méthode complète
+            </a>.
+          </p>
         </div>
 
         {/* ── Navigation — même département ── */}

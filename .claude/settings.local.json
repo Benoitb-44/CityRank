@@ -274,7 +274,20 @@
       "Bash(unzip -l data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx)",
       "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/workbook.xml)",
       "Bash(unzip -p data/cerema/current/dv3f_accessibilite_aav_2022_2024.xlsx xl/worksheets/sheet1.xml)",
-      "Bash(make help *)"
+      "Bash(make help *)",
+      "Bash(psql 'postgresql://postgres:Scoreimmo2026!@localhost:5432/postgres?options=-c%20search_path%3Dimmo_score' -c \"SELECT COUNT\\(*\\) FROM immo_score.cerema_accessibilite;\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 10 \"https://mcp-db.cityrank.fr/sse\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Authorization: Basic Y2xhdWRlX2FnZW50OjIwODdmOTY3MjRjODUwZDU0YTk4ZmQ3NWUxZGZkNTg0NWQ0NzdkNzgzOGJiODhiOA==' https://mcp-db.cityrank.fr/sse)",
+      "Bash(curl -sv --max-time 10 -H 'Authorization: Basic Y2xhdWRlX2FnZW50OjIwODdmOTY3MjRjODUwZDU0YTk4ZmQ3NWUxZGZkNTg0NWQ0NzdkNzgzOGJiODhiOA==' -H 'Accept: text/event-stream' https://mcp-db.cityrank.fr/sse)",
+      "Bash(curl -s https://cityrank.fr/communes/bordeaux)",
+      "Bash(curl -s https://cityrank.fr/communes/tulle)",
+      "Bash(grep -oiE '[^\"]{0,50}accessib[^\"]{0,80}' /home/codespace/.claude/projects/-workspaces-immo-score/28d017fb-4634-406e-a980-e7eb7cf28bf2/tool-results/b55fn7ual.txt)",
+      "Bash(grep -oiE '[^\"]{0,50}accessib[^\"]{0,80}' /home/codespace/.claude/projects/-workspaces-immo-score/28d017fb-4634-406e-a980-e7eb7cf28bf2/tool-results/ba1ofwm9r.txt)",
+      "Bash(grep -oiE 'score[^<\"]{0,100}' /home/codespace/.claude/projects/-workspaces-immo-score/28d017fb-4634-406e-a980-e7eb7cf28bf2/tool-results/b55fn7ual.txt)",
+      "Bash(grep -oiE '\\(financ|prix abord|loyer|revenu|coût|affordab\\)[^<\"]{0,100}' /home/codespace/.claude/projects/-workspaces-immo-score/28d017fb-4634-406e-a980-e7eb7cf28bf2/tool-results/b55fn7ual.txt)",
+      "Bash(npx next *)",
+      "Bash(curl -s --max-time 15 \"https://cityrank.fr/communes/bordeaux\")",
+      "Bash(curl -s --max-time 15 \"https://cityrank.fr/communes/tulle\")"
     ]
   }
 }
